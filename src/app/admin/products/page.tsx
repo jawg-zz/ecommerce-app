@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { formatPrice } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
+import { validatePrice, validateStock, isNetworkError } from '@/lib/validation'
 
 interface Product {
   id: string
@@ -13,12 +15,21 @@ interface Product {
   stock: number
 }
 
+interface FormErrors {
+  name?: string
+  price?: string
+  stock?: string
+  image?: string
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const { showToast } = useToast()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -29,19 +40,106 @@ export default function AdminProductsPage() {
     stock: '0',
   })
 
+  const [errors, setErrors] = useState<FormErrors>({})
+
   useEffect(() => {
     fetchProducts()
   }, [])
 
   const fetchProducts = async () => {
-    const res = await fetch('/api/admin/products')
-    const data = await res.json()
-    setProducts(data.products)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/admin/products')
+      const data = await res.json()
+      setProducts(data.products)
+    } catch {
+      showToast('Failed to load products', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    
+    if (touched[name]) {
+      validateField(name as keyof FormErrors, value)
+    }
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name } = e.target
+    setTouched((prev) => ({ ...prev, [name]: true }))
+    validateField(name as keyof FormErrors, formData[name as keyof typeof formData])
+  }
+
+  const validateField = (field: keyof FormErrors, value: string) => {
+    let error: string | undefined
+    
+    switch (field) {
+      case 'name':
+        if (!value.trim()) {
+          error = 'Product name is required'
+        } else if (value.trim().length < 2) {
+          error = 'Product name must be at least 2 characters'
+        }
+        break
+      case 'price':
+        if (!value) {
+          error = 'Price is required'
+        } else {
+          const validation = validatePrice(value)
+          if (!validation.isValid) {
+            error = validation.error
+          }
+        }
+        break
+      case 'stock':
+        if (value === '') {
+          error = 'Stock is required'
+        } else {
+          const validation = validateStock(value)
+          if (!validation.isValid) {
+            error = validation.error
+          }
+        }
+        break
+      case 'image':
+        if (value && !value.startsWith('http')) {
+          error = 'Please enter a valid URL'
+        }
+        break
+    }
+    
+    setErrors((prev) => ({ ...prev, [field]: error }))
+    return !error
+  }
+
+  const isFormValid = () => {
+    const nameValid = validateField('name', formData.name)
+    const priceValid = validateField('price', formData.price)
+    const stockValid = validateField('stock', formData.stock)
+    const imageValid = validateField('image', formData.image)
+    
+    return nameValid && priceValid && stockValid && imageValid
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    setTouched({ name: true, price: true, stock: true, image: true })
+    
+    const nameValid = validateField('name', formData.name)
+    const priceValid = validateField('price', formData.price)
+    const stockValid = validateField('stock', formData.stock)
+    const imageValid = validateField('image', formData.image)
+    
+    if (!nameValid || !priceValid || !stockValid || !imageValid) {
+      return
+    }
+
+    if (saving) return
+
     setSaving(true)
 
     const payload = {
@@ -57,17 +155,32 @@ export default function AdminProductsPage() {
       ? `/api/admin/products/${editingProduct.id}`
       : '/api/admin/products'
 
-    const res = await fetch(url, {
-      method: editingProduct ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    try {
+      const res = await fetch(url, {
+        method: editingProduct ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
 
-    if (res.ok) {
+      const data = await res.json()
+
+      if (!res.ok) {
+        showToast(data.error || 'Failed to save product', 'error')
+        return
+      }
+
+      showToast(editingProduct ? 'Product updated successfully' : 'Product created successfully', 'success')
       fetchProducts()
       resetForm()
+    } catch (err) {
+      if (isNetworkError(err)) {
+        showToast('Unable to connect. Please check your connection.', 'error')
+      } else {
+        showToast('Failed to save product. Please try again.', 'error')
+      }
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const handleEdit = (product: Product) => {
@@ -81,13 +194,27 @@ export default function AdminProductsPage() {
       stock: product.stock.toString(),
     })
     setShowForm(true)
+    setTouched({})
+    setErrors({})
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return
 
-    await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
-    fetchProducts()
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        showToast(data.error || 'Failed to delete product', 'error')
+        return
+      }
+      
+      showToast('Product deleted successfully', 'success')
+      fetchProducts()
+    } catch {
+      showToast('Failed to delete product. Please try again.', 'error')
+    }
   }
 
   const resetForm = () => {
@@ -101,6 +228,8 @@ export default function AdminProductsPage() {
       image: '',
       stock: '0',
     })
+    setTouched({})
+    setErrors({})
   }
 
   const categoryColors: Record<string, string> = {
@@ -114,7 +243,11 @@ export default function AdminProductsPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold">Products</h2>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setShowForm(true)
+            setTouched({})
+            setErrors({})
+          }}
           className="btn-primary"
         >
           Add Product
@@ -130,32 +263,37 @@ export default function AdminProductsPage() {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Name
+                  Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  required
+                  name="name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="input-field"
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${touched.name && errors.name ? 'border-red-500' : ''}`}
                 />
+                {touched.name && errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Price
+                  Price <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
+                  name="price"
                   step="0.01"
-                  required
+                  min="0.01"
                   value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
-                  className="input-field"
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${touched.price && errors.price ? 'border-red-500' : ''}`}
                 />
+                {touched.price && errors.price && (
+                  <p className="text-red-500 text-xs mt-1">{errors.price}</p>
+                )}
               </div>
             </div>
 
@@ -164,10 +302,9 @@ export default function AdminProductsPage() {
                 Description
               </label>
               <textarea
+                name="description"
                 value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
+                onChange={handleChange}
                 className="input-field"
                 rows={3}
               />
@@ -179,10 +316,9 @@ export default function AdminProductsPage() {
                   Category
                 </label>
                 <select
+                  name="category"
                   value={formData.category}
-                  onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
-                  }
+                  onChange={handleChange}
                   className="input-field"
                 >
                   <option value="ELECTRONICS">Electronics</option>
@@ -192,16 +328,20 @@ export default function AdminProductsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Stock
+                  Stock <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
+                  name="stock"
+                  min="0"
                   value={formData.stock}
-                  onChange={(e) =>
-                    setFormData({ ...formData, stock: e.target.value })
-                  }
-                  className="input-field"
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${touched.stock && errors.stock ? 'border-red-500' : ''}`}
                 />
+                {touched.stock && errors.stock && (
+                  <p className="text-red-500 text-xs mt-1">{errors.stock}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -209,18 +349,28 @@ export default function AdminProductsPage() {
                 </label>
                 <input
                   type="url"
+                  name="image"
                   value={formData.image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.value })
-                  }
-                  className="input-field"
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${touched.image && errors.image ? 'border-red-500' : ''}`}
                   placeholder="https://..."
                 />
+                {touched.image && errors.image && (
+                  <p className="text-red-500 text-xs mt-1">{errors.image}</p>
+                )}
               </div>
             </div>
 
             <div className="flex gap-4">
-              <button type="submit" disabled={saving} className="btn-primary">
+              <button 
+                type="submit" 
+                disabled={saving} 
+                className="btn-primary disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
                 {saving ? 'Saving...' : editingProduct ? 'Update' : 'Create'}
               </button>
               <button type="button" onClick={resetForm} className="btn-secondary">
@@ -290,7 +440,11 @@ export default function AdminProductsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">{formatPrice(product.price)}</td>
-                  <td className="px-4 py-3">{product.stock}</td>
+                  <td className="px-4 py-3">
+                    <span className={product.stock === 0 ? 'text-red-500' : product.stock <= 5 ? 'text-orange-500' : ''}>
+                      {product.stock}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => handleEdit(product)}

@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/components/Providers'
+import { useToast } from '@/components/Toast'
 import { formatPrice } from '@/lib/utils'
+import { isNetworkError } from '@/lib/validation'
 
 export default function CartPage() {
   const router = useRouter()
   const { user, cart, setCart, refreshCart } = useApp()
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [updatingItem, setUpdatingItem] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -18,7 +22,15 @@ export default function CartPage() {
   }, [user, refreshCart])
 
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
-    setLoading(true)
+    if (quantity < 1) return
+    
+    const item = cart.items.find(i => i.productId === productId)
+    if (item && quantity > item.product.stock) {
+      showToast(`Maximum available stock is ${item.product.stock}`, 'error')
+      return
+    }
+
+    setUpdatingItem(productId)
     try {
       const res = await fetch('/api/cart', {
         method: 'PUT',
@@ -26,32 +38,53 @@ export default function CartPage() {
         body: JSON.stringify({ productId, quantity }),
       })
 
-      if (res.ok) {
-        const data = await res.json()
-        setCart(data)
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (data.error?.includes('stock') || data.error?.includes('available')) {
+          showToast(`Not enough stock. Only ${data.available} available.`, 'error')
+        } else {
+          showToast(data.error || 'Failed to update quantity', 'error')
+        }
+        return
       }
-    } catch (error) {
-      console.error('Failed to update quantity:', error)
+
+      setCart(data)
+    } catch (err) {
+      if (isNetworkError(err)) {
+        showToast('Unable to connect. Please check your connection.', 'error')
+      } else {
+        showToast('Failed to update quantity. Please try again.', 'error')
+      }
     } finally {
-      setLoading(false)
+      setUpdatingItem(null)
     }
   }
 
   const handleRemove = async (productId: string) => {
-    setLoading(true)
+    setUpdatingItem(productId)
     try {
       const res = await fetch(`/api/cart?productId=${productId}`, {
         method: 'DELETE',
       })
 
-      if (res.ok) {
-        const data = await res.json()
-        setCart(data)
+      const data = await res.json()
+
+      if (!res.ok) {
+        showToast(data.error || 'Failed to remove item', 'error')
+        return
       }
-    } catch (error) {
-      console.error('Failed to remove item:', error)
+
+      setCart(data)
+      showToast('Item removed from cart', 'success')
+    } catch (err) {
+      if (isNetworkError(err)) {
+        showToast('Unable to connect. Please check your connection.', 'error')
+      } else {
+        showToast('Failed to remove item. Please try again.', 'error')
+      }
     } finally {
-      setLoading(false)
+      setUpdatingItem(null)
     }
   }
 
@@ -130,6 +163,12 @@ export default function CartPage() {
                     {formatPrice(item.product.price)}
                   </p>
 
+                  {item.quantity >= item.product.stock && item.product.stock > 0 && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      Max available: {item.product.stock}
+                    </p>
+                  )}
+
                   <div className="flex items-center justify-between mt-4">
                     <div className="flex items-center border border-slate-200 rounded-lg">
                       <button
@@ -139,12 +178,18 @@ export default function CartPage() {
                             item.quantity - 1
                           )
                         }
-                        disabled={loading}
-                        className="px-3 py-1 text-slate-600 hover:bg-slate-50"
+                        disabled={updatingItem === item.productId || item.quantity <= 1}
+                        className="px-3 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
                         -
                       </button>
-                      <span className="px-3 py-1">{item.quantity}</span>
+                      <span className="px-3 py-1 min-w-[40px] text-center">
+                        {updatingItem === item.productId ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600 mx-auto"></div>
+                        ) : (
+                          item.quantity
+                        )}
+                      </span>
                       <button
                         onClick={() =>
                           handleUpdateQuantity(
@@ -152,8 +197,8 @@ export default function CartPage() {
                             item.quantity + 1
                           )
                         }
-                        disabled={loading || item.quantity >= item.product.stock}
-                        className="px-3 py-1 text-slate-600 hover:bg-slate-50"
+                        disabled={updatingItem === item.productId || item.quantity >= item.product.stock}
+                        className="px-3 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
                         +
                       </button>
@@ -161,8 +206,8 @@ export default function CartPage() {
 
                     <button
                       onClick={() => handleRemove(item.productId)}
-                      disabled={loading}
-                      className="text-red-500 hover:text-red-600"
+                      disabled={updatingItem === item.productId}
+                      className="text-red-500 hover:text-red-600 disabled:opacity-50"
                     >
                       Remove
                     </button>

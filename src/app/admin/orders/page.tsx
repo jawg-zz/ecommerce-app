@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
+import { isNetworkError } from '@/lib/validation'
 
 interface OrderItem {
   id: string
@@ -37,6 +39,7 @@ interface Order {
 function AdminOrdersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { showToast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
@@ -48,24 +51,50 @@ function AdminOrdersContent() {
   }, [statusFilter])
 
   const fetchOrders = async () => {
-    const params = new URLSearchParams()
-    if (statusFilter) params.set('status', statusFilter)
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter) params.set('status', statusFilter)
 
-    const res = await fetch(`/api/admin/orders?${params}`)
-    const data = await res.json()
-    setOrders(data.orders)
-    setLoading(false)
+      const res = await fetch(`/api/admin/orders?${params}`)
+      const data = await res.json()
+      
+      if (!res.ok) {
+        showToast(data.error || 'Failed to load orders', 'error')
+        return
+      }
+      
+      setOrders(data.orders)
+    } catch {
+      showToast('Failed to load orders. Please check your connection.', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleStatusUpdate = async (orderId: string, status: string) => {
     setUpdating(orderId)
-    await fetch(`/api/admin/orders/${orderId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
-    fetchOrders()
-    setUpdating(null)
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        showToast(data.error || 'Failed to update order status', 'error')
+        setUpdating(null)
+        return
+      }
+      
+      showToast('Order status updated successfully', 'success')
+      fetchOrders()
+    } catch {
+      showToast('Failed to update order. Please check your connection.', 'error')
+    } finally {
+      setUpdating(null)
+    }
   }
 
   const handleStatusFilter = (status: string) => {

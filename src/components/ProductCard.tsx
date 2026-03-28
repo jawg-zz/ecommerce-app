@@ -1,8 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useApp } from './Providers'
+import { useToast } from './Toast'
 import { formatPrice } from '@/lib/utils'
+import { isNetworkError } from '@/lib/validation'
 
 interface Product {
   id: string
@@ -20,10 +23,21 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { setCart, refreshCart } = useApp()
+  const { showToast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    
+    if (product.stock === 0) {
+      showToast('This item is currently out of stock', 'error')
+      return
+    }
+
+    setLoading(true)
+    setError('')
 
     try {
       const res = await fetch('/api/cart', {
@@ -32,12 +46,27 @@ export function ProductCard({ product }: ProductCardProps) {
         body: JSON.stringify({ productId: product.id, quantity: 1 }),
       })
 
-      if (res.ok) {
-        const data = await res.json()
-        setCart(data)
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (data.error?.includes('stock') || data.error?.includes('available')) {
+          showToast(`Not enough stock available. Only ${data.available} items in stock.`, 'error')
+        } else {
+          showToast(data.error || 'Failed to add to cart', 'error')
+        }
+        return
       }
-    } catch (error) {
-      console.error('Failed to add to cart:', error)
+
+      setCart(data)
+      showToast(`${product.name} added to cart!`, 'success')
+    } catch (err) {
+      if (isNetworkError(err)) {
+        showToast('Unable to connect. Please check your internet connection.', 'error')
+      } else {
+        showToast('Failed to add to cart. Please try again.', 'error')
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -81,6 +110,18 @@ export function ProductCard({ product }: ProductCardProps) {
         >
           {product.category}
         </span>
+        {product.stock === 0 && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+              Out of Stock
+            </span>
+          </div>
+        )}
+        {product.stock > 0 && product.stock <= 5 && (
+          <span className="absolute bottom-2 left-2 bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">
+            Only {product.stock} left
+          </span>
+        )}
       </div>
 
       <div className="p-4">
@@ -92,10 +133,19 @@ export function ProductCard({ product }: ProductCardProps) {
         </p>
         <button
           onClick={handleAddToCart}
-          disabled={product.stock === 0}
-          className="w-full btn-primary disabled:opacity-50"
+          disabled={loading || product.stock === 0}
+          className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+          {loading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Adding...
+            </>
+          ) : product.stock === 0 ? (
+            'Out of Stock'
+          ) : (
+            'Add to Cart'
+          )}
         </button>
       </div>
     </Link>

@@ -4,26 +4,47 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
+import { useToast } from '@/components/Toast'
 import { formatPrice } from '@/lib/utils'
+import {
+  validatePhone,
+  validatePhoneForDisplay,
+  validateRequired,
+  getMpesaErrorMessage,
+  isNetworkError,
+} from '@/lib/validation'
 
 type CheckoutStep = 'form' | 'processing' | 'success'
 
 const PAYMENT_TIMEOUT_SECONDS = 120
 
+interface FormErrors {
+  name?: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { user, cart, setCart, refreshCart } = useApp()
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<CheckoutStep>('form')
   const [phone, setPhone] = useState('')
+  const [phoneValid, setPhoneValid] = useState(false)
   const [checkoutRequestId, setCheckoutRequestId] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [timeRemaining, setTimeRemaining] = useState(PAYMENT_TIMEOUT_SECONDS)
   const [phoneError, setPhoneError] = useState('')
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const cancelRef = useRef(false)
+  const retryDataRef = useRef<{ shippingAddress: typeof shippingAddress; phone: string } | null>(null)
 
   const [shippingAddress, setShippingAddress] = useState({
     name: '',
@@ -43,28 +64,85 @@ export default function CheckoutPage() {
     refreshCart()
   }, [user, router, refreshCart])
 
-  const validatePhone = (phone: string): boolean => {
-    const cleaned = phone.replace(/\D/g, '')
-    if (cleaned.startsWith('0')) {
-      return cleaned.length === 10
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
     }
-    if (cleaned.startsWith('254')) {
-      return cleaned.length === 12
+  }, [])
+
+  const validateField = (field: keyof FormErrors, value: string) => {
+    switch (field) {
+      case 'name':
+        if (!value.trim()) return 'Full name is required'
+        if (value.trim().length < 2) return 'Name must be at least 2 characters'
+        return undefined
+      case 'address':
+        if (!value.trim()) return 'Address is required'
+        if (value.trim().length < 5) return 'Address must be at least 5 characters'
+        return undefined
+      case 'city':
+        if (!value.trim()) return 'City is required'
+        if (value.trim().length < 2) return 'City must be at least 2 characters'
+        return undefined
+      case 'state':
+        if (!value.trim()) return 'County is required'
+        if (value.trim().length < 2) return 'County must be at least 2 characters'
+        return undefined
+      case 'zipCode':
+        if (!value.trim()) return 'ZIP code is required'
+        if (value.trim().length < 3) return 'ZIP code must be at least 3 characters'
+        return undefined
+      default:
+        return undefined
     }
-    if (cleaned.startsWith('7') || cleaned.startsWith('1')) {
-      return cleaned.length === 9
+  }
+
+  const handleAddressChange = (field: keyof typeof shippingAddress, value: string) => {
+    setShippingAddress((prev) => ({ ...prev, [field]: value }))
+    
+    if (touched[field]) {
+      const error = field in formErrors ? validateField(field as keyof FormErrors, value) : undefined
+      setFormErrors((prev) => ({ ...prev, [field]: error }))
     }
-    return false
+  }
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }))
+    const value = shippingAddress[field as keyof typeof shippingAddress]
+    const error = validateField(field as keyof FormErrors, value)
+    setFormErrors((prev) => ({ ...prev, [field]: error }))
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setPhone(value)
-    if (value && !validatePhone(value)) {
-      setPhoneError('Please enter a valid phone number (e.g., 0712345678 or 254712345678)')
+    
+    if (value) {
+      const validation = validatePhone(value)
+      if (!validation.isValid) {
+        setPhoneError(validation.error || 'Invalid phone number')
+        setPhoneValid(false)
+      } else {
+        setPhoneError('')
+        setPhoneValid(true)
+      }
     } else {
       setPhoneError('')
+      setPhoneValid(false)
     }
+  }
+
+  const isFormValid = () => {
+    const nameError = validateField('name', shippingAddress.name)
+    const addressError = validateField('address', shippingAddress.address)
+    const cityError = validateField('city', shippingAddress.city)
+    const stateError = validateField('state', shippingAddress.state)
+    const zipCodeError = validateField('zipCode', shippingAddress.zipCode)
+    const phoneValidation = validatePhone(phone)
+
+    return !nameError && !addressError && !cityError && !stateError && !zipCodeError && phoneValidation.isValid
   }
 
   const cancelPayment = useCallback(() => {
@@ -74,7 +152,7 @@ export default function CheckoutPage() {
       pollIntervalRef.current = null
     }
     setStep('form')
-    setError('Payment cancelled')
+    setError('')
     setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
   }, [])
 
@@ -84,25 +162,16 @@ export default function CheckoutPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const formatPhoneForDisplay = (phone: string): string => {
-    const cleaned = phone.replace(/\D/g, '')
-    if (cleaned.startsWith('254')) {
-      return `0${cleaned.slice(3)}`
+  const handleRetry = () => {
+    if (retryDataRef.current) {
+      retryPayment(retryDataRef.current.shippingAddress, retryDataRef.current.phone)
     }
-    return phone
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setProcessing(true)
+  const retryPayment = async (address: typeof shippingAddress, phoneNumber: string) => {
     setError('')
+    setProcessing(true)
     cancelRef.current = false
-
-    if (!validatePhone(phone)) {
-      setPhoneError('Please enter a valid Kenyan phone number (e.g., 0712345678 or 254712345678)')
-      setProcessing(false)
-      return
-    }
 
     setLoading(true)
     setStatusMessage('Initiating payment...')
@@ -111,13 +180,17 @@ export default function CheckoutPage() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shippingAddress, phone }),
+        body: JSON.stringify({ shippingAddress: address, phone: phoneNumber }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Checkout failed')
+        if (data.errorCode) {
+          setError(getMpesaErrorMessage(data.errorCode))
+        } else {
+          setError(data.error || 'Checkout failed')
+        }
         setProcessing(false)
         setLoading(false)
         return
@@ -129,12 +202,47 @@ export default function CheckoutPage() {
       setStatusMessage('Check your phone for the M-Pesa prompt!')
       setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
 
-      pollPaymentStatus(data.checkoutRequestId, shippingAddress)
-    } catch {
-      setError('An error occurred during checkout')
+      pollPaymentStatus(data.checkoutRequestId, address)
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError('Unable to connect. Please check your internet connection.')
+      } else {
+        setError('An error occurred during checkout')
+      }
       setProcessing(false)
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTouched({ name: true, address: true, city: true, state: true, zipCode: true })
+    
+    const nameError = validateField('name', shippingAddress.name)
+    const addressError = validateField('address', shippingAddress.address)
+    const cityError = validateField('city', shippingAddress.city)
+    const stateError = validateField('state', shippingAddress.state)
+    const zipCodeError = validateField('zipCode', shippingAddress.zipCode)
+    const phoneValidation = validatePhone(phone)
+
+    setFormErrors({
+      name: nameError,
+      address: addressError,
+      city: cityError,
+      state: stateError,
+      zipCode: zipCodeError,
+    })
+
+    if (!phoneValidation.isValid) {
+      setPhoneError(phoneValidation.error || 'Please enter a valid phone number')
+    }
+
+    if (nameError || addressError || cityError || stateError || zipCodeError || !phoneValidation.isValid) {
+      return
+    }
+
+    retryDataRef.current = { shippingAddress, phone }
+    retryPayment(shippingAddress, phone)
   }
 
   const pollPaymentStatus = async (checkoutId: string, address: typeof shippingAddress) => {
@@ -190,22 +298,38 @@ export default function CheckoutPage() {
           return
         }
 
-        if (timeRemaining <= 1) {
+        if (data.errorCode) {
           clearInterval(timerInterval)
-          setError('Payment timed out. Please try again.')
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current)
+          }
+          setError(getMpesaErrorMessage(data.errorCode))
           setStep('form')
           return
         }
 
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerInterval)
+            setError('Payment timed out. Please try again.')
+            setStep('form')
+            return 0
+          }
+          return prev
+        })
+
         setStatusMessage('Waiting for payment confirmation...')
         pollIntervalRef.current = setTimeout(poll, 3000)
       } catch {
-        if (timeRemaining <= 1) {
-          clearInterval(timerInterval)
-          setError('Failed to verify payment. Please try again.')
-          setStep('form')
-          return
-        }
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerInterval)
+            setError('Failed to verify payment. Please try again.')
+            setStep('form')
+            return 0
+          }
+          return prev
+        })
         pollIntervalRef.current = setTimeout(poll, 3000)
       }
     }
@@ -283,100 +407,117 @@ export default function CheckoutPage() {
             <form onSubmit={handleSubmit} className="card p-6">
               <h2 className="text-lg font-semibold mb-6">Shipping Address</h2>
 
-              {(error || phoneError) && (
+              {error && (
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-                  {error || phoneError}
+                  {error}
+                  {error && (
+                    <button
+                      type="button"
+                      onClick={handleRetry}
+                      className="ml-2 text-red-700 underline font-medium hover:text-red-800"
+                    >
+                      Try Again
+                    </button>
+                  )}
                 </div>
               )}
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Full Name
+                    Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    required
                     value={shippingAddress.name}
-                    onChange={(e) =>
-                      setShippingAddress({ ...shippingAddress, name: e.target.value })
-                    }
-                    className="input-field"
+                    onChange={(e) => handleAddressChange('name', e.target.value)}
+                    onBlur={() => handleBlur('name')}
+                    className={`input-field ${touched.name && formErrors.name ? 'border-red-500' : ''}`}
+                    placeholder="John Doe"
                   />
+                  {touched.name && formErrors.name && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Address
+                    Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    required
                     value={shippingAddress.address}
-                    onChange={(e) =>
-                      setShippingAddress({ ...shippingAddress, address: e.target.value })
-                    }
-                    className="input-field"
+                    onChange={(e) => handleAddressChange('address', e.target.value)}
+                    onBlur={() => handleBlur('address')}
+                    className={`input-field ${touched.address && formErrors.address ? 'border-red-500' : ''}`}
+                    placeholder="123 Main Street"
                   />
+                  {touched.address && formErrors.address && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      City
+                      City <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      required
                       value={shippingAddress.city}
-                      onChange={(e) =>
-                        setShippingAddress({ ...shippingAddress, city: e.target.value })
-                      }
-                      className="input-field"
+                      onChange={(e) => handleAddressChange('city', e.target.value)}
+                      onBlur={() => handleBlur('city')}
+                      className={`input-field ${touched.city && formErrors.city ? 'border-red-500' : ''}`}
+                      placeholder="Nairobi"
                     />
+                    {touched.city && formErrors.city && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.city}</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      County
+                      County <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      required
                       value={shippingAddress.state}
-                      onChange={(e) =>
-                        setShippingAddress({ ...shippingAddress, state: e.target.value })
-                      }
-                      className="input-field"
+                      onChange={(e) => handleAddressChange('state', e.target.value)}
+                      onBlur={() => handleBlur('state')}
+                      className={`input-field ${touched.state && formErrors.state ? 'border-red-500' : ''}`}
+                      placeholder="Nairobi"
                     />
+                    {touched.state && formErrors.state && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.state}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      ZIP Code
+                      ZIP Code <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      required
                       value={shippingAddress.zipCode}
-                      onChange={(e) =>
-                        setShippingAddress({ ...shippingAddress, zipCode: e.target.value })
-                      }
-                      className="input-field"
+                      onChange={(e) => handleAddressChange('zipCode', e.target.value)}
+                      onBlur={() => handleBlur('zipCode')}
+                      className={`input-field ${touched.zipCode && formErrors.zipCode ? 'border-red-500' : ''}`}
+                      placeholder="00100"
                     />
+                    {touched.zipCode && formErrors.zipCode && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.zipCode}</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Country
+                      Country <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={shippingAddress.country}
-                      onChange={(e) =>
-                        setShippingAddress({ ...shippingAddress, country: e.target.value })
-                      }
+                      onChange={(e) => handleAddressChange('country', e.target.value)}
                       className="input-field"
                     >
                       <option value="KE">Kenya</option>
@@ -389,16 +530,33 @@ export default function CheckoutPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    M-Pesa Phone Number
+                    M-Pesa Phone Number <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="0712345678 or 254712345678"
-                    value={phone}
-                    onChange={handlePhoneChange}
-                    className="input-field"
-                  />
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      placeholder="0712345678 or 254712345678"
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      className={`input-field pr-10 ${phoneError && phone ? 'border-red-500' : ''} ${phoneValid ? 'border-green-500' : ''}`}
+                    />
+                    {phoneValid && (
+                      <svg
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  {phoneError && phone && (
+                    <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+                  )}
                   <p className="text-xs text-slate-500 mt-1">
                     Enter phone number (e.g., 0712345678 or 254712345678)
                   </p>
@@ -441,15 +599,23 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              form="checkout-form"
               onClick={handleSubmit}
-              disabled={processing}
-              className="w-full btn-primary py-3 flex items-center justify-center gap-2"
+              disabled={processing || !isFormValid()}
+              className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
-              {processing ? 'Processing...' : `Pay ${formatPrice(cart.total)} with M-Pesa`}
+              {processing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                  </svg>
+                  Pay {formatPrice(cart.total)} with M-Pesa
+                </>
+              )}
             </button>
 
             <div className="bg-green-50 p-3 rounded-lg mt-4">

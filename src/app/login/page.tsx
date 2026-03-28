@@ -4,47 +4,157 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
+import { useToast } from '@/components/Toast'
+import { validateEmail, validatePassword, getPasswordStrength, isNetworkError } from '@/lib/validation'
+
+interface FormErrors {
+  name?: string
+  email?: string
+  password?: string
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const { setUser } = useApp()
+  const { showToast } = useToast()
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+  })
+  
+  const [errors, setErrors] = useState<FormErrors>({})
+  
+  const passwordStrength = !isLogin ? getPasswordStrength(formData.password) : null
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    
+    if (touched[name]) {
+      validateField(name as keyof FormErrors, value)
+    }
+    
+    setError('')
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name } = e.target
+    setTouched((prev) => ({ ...prev, [name]: true }))
+    validateField(name as keyof FormErrors, formData[name as keyof typeof formData])
+  }
+
+  const validateField = (field: keyof FormErrors, value: string) => {
+    let error: string | undefined
+    
+    switch (field) {
+      case 'name':
+        if (!value.trim()) {
+          error = 'Name is required'
+        } else if (value.trim().length < 2) {
+          error = 'Name must be at least 2 characters'
+        }
+        break
+      case 'email':
+        if (!value.trim()) {
+          error = 'Email is required'
+        } else {
+          const validation = validateEmail(value)
+          if (!validation.isValid) {
+            error = validation.error
+          }
+        }
+        break
+      case 'password':
+        if (!value) {
+          error = 'Password is required'
+        } else if (!isLogin && value.length < 8) {
+          error = 'Password must be at least 8 characters'
+        }
+        break
+    }
+    
+    setErrors((prev) => ({ ...prev, [field]: error }))
+    return !error
+  }
+
+  const isFormValid = () => {
+    const nameValid = isLogin ? true : validateField('name', formData.name)
+    const emailValid = validateField('email', formData.email)
+    const passwordValid = validateField('password', formData.password)
+    
+    return nameValid && emailValid && passwordValid
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    
+    setTouched({ name: true, email: true, password: true })
+    
+    const nameValid = isLogin ? true : validateField('name', formData.name)
+    const emailValid = validateField('email', formData.email)
+    const passwordValid = validateField('password', formData.password)
+    
+    if (!nameValid || !emailValid || !passwordValid) {
+      return
+    }
+
     setLoading(true)
     setError('')
-
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
 
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isLogin ? { email, password } : { 
-          email, 
-          password,
-          name: formData.get('name') as string 
-        }),
+        body: JSON.stringify(isLogin 
+          ? { email: formData.email, password: formData.password }
+          : { 
+              email: formData.email, 
+              password: formData.password,
+              name: formData.name 
+            }
+        ),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Something went wrong')
+        if (data.error === 'Email already exists') {
+          setError('This email is already registered. Please sign in instead.')
+        } else if (data.error === 'Invalid credentials') {
+          setError('Invalid email or password. Please try again.')
+        } else if (data.details) {
+          const firstError = data.details[0]
+          if (firstError?.path?.includes('email')) {
+            setError('Please enter a valid email address')
+          } else if (firstError?.path?.includes('password')) {
+            setError(firstError.message)
+          } else {
+            setError(data.error || 'Something went wrong')
+          }
+        } else {
+          setError(data.error || 'Something went wrong')
+        }
+        setLoading(false)
         return
       }
 
       setUser(data)
+      showToast(isLogin ? 'Welcome back!' : 'Account created successfully!', 'success')
       router.push('/')
       router.refresh()
-    } catch {
-      setError('An error occurred. Please try again.')
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError('Unable to connect. Please check your internet connection.')
+      } else {
+        setError('An error occurred. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -69,58 +179,115 @@ export default function LoginPage() {
               {!isLogin && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Name
+                    Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="name"
-                    required
-                    className="input-field"
+                    value={formData.name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`input-field ${touched.name && errors.name ? 'border-red-500' : ''}`}
                     placeholder="John Doe"
                   />
+                  {touched.name && errors.name && (
+                    <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                  )}
                 </div>
               )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Email
+                  Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
                   name="email"
-                  required
-                  className="input-field"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${touched.email && errors.email ? 'border-red-500' : ''}`}
                   placeholder="you@example.com"
                 />
+                {touched.email && errors.email && (
+                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Password
+                  Password <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
                   name="password"
-                  required
-                  minLength={6}
-                  className="input-field"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${touched.password && errors.password ? 'border-red-500' : ''}`}
                   placeholder="••••••••"
                 />
+                {touched.password && errors.password && (
+                  <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                )}
+                
+                {!isLogin && formData.password && passwordStrength && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-slate-500">Password strength:</span>
+                      <span className={`
+                        ${passwordStrength.label === 'Very Weak' || passwordStrength.label === 'Weak' ? 'text-red-500' : ''}
+                        ${passwordStrength.label === 'Fair' ? 'text-yellow-500' : ''}
+                        ${passwordStrength.label === 'Good' || passwordStrength.label === 'Strong' ? 'text-green-500' : ''}
+                      `}>
+                        {passwordStrength.label}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                        style={{ width: `${passwordStrength.percentage}%` }}
+                      />
+                    </div>
+                    <ul className="mt-2 text-xs text-slate-500 space-y-1">
+                      {formData.password.length >= 8 && <li className="text-green-600">✓ At least 8 characters</li>}
+                      {formData.password.length < 8 && <li>• At least 8 characters</li>}
+                      {/[A-Z]/.test(formData.password) && <li className="text-green-600">✓ Contains uppercase letter</li>}
+                      {!/[A-Z]/.test(formData.password) && <li>• Contains uppercase letter</li>}
+                      {/[a-z]/.test(formData.password) && <li className="text-green-600">✓ Contains lowercase letter</li>}
+                      {!/[a-z]/.test(formData.password) && <li>• Contains lowercase letter</li>}
+                      {/[0-9]/.test(formData.password) && <li className="text-green-600">✓ Contains number</li>}
+                      {!/[0-9]/.test(formData.password) && <li>• Contains number</li>}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full btn-primary py-3"
+                className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Please wait...
+                  </>
+                ) : (
+                  isLogin ? 'Sign In' : 'Create Account'
+                )}
               </button>
             </form>
 
             <p className="text-center mt-6 text-slate-600">
               {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <button
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin)
+                  setError('')
+                  setErrors({})
+                  setTouched({})
+                }}
                 className="text-blue-500 hover:text-blue-600 font-medium"
               >
                 {isLogin ? 'Sign Up' : 'Sign In'}

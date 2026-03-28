@@ -89,8 +89,14 @@ export async function POST(request: NextRequest) {
       )
     }
     console.error('Checkout error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    
+    // Check for M-Pesa specific error codes
+    const mpesaErrorMatch = errorMessage.match(/M-Pesa.*?:\s*(\d+)/)
+    const errorCode = mpesaErrorMatch ? mpesaErrorMatch[1] : undefined
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage, errorCode },
       { status: 500 }
     )
   }
@@ -159,6 +165,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ 
       status: paymentStatus.status,
+      errorCode: paymentStatus.resultCode,
       message: paymentStatus.resultDesc 
     })
   } catch (error) {
