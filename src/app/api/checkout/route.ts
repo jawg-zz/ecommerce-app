@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { initiateSTKPush, querySTKStatus } from '@/lib/mpesa'
 
 const checkoutSchema = z.object({
-  phoneNumber: z.string().regex(/^(254|0)[17]\d{8}$/, 'Invalid phone number format'),
+  phoneNumber: z.string().regex(/^(254[17]\d{8}|0[17]\d{8})$/, 'Invalid phone number format (use 0712345678 or 254712345678)'),
   shippingAddress: z.object({
     name: z.string(),
     address: z.string(),
