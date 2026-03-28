@@ -32,16 +32,19 @@ model Product {
 }
 
 model Order {
-  id              String        @id @default(uuid())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  status          OrderStatus   @default(PENDING)
-  items           OrderItem[]
-  total           Decimal       @db.Decimal(10, 2)
-  stripePaymentId String?
-  shippingAddress Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                       String        @id @default(uuid())
+  userId                   String
+  user                     User          @relation(fields: [userId], references: [id])
+  status                   OrderStatus   @default(PENDING)
+  items                    OrderItem[]
+  total                    Decimal       @db.Decimal(10, 2)
+  stripePaymentId          String?
+  mpesaCheckoutRequestId   String?
+  mpesaMerchantRequestId   String?
+  reference                String?
+  shippingAddress          Json?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
 }
 
 model OrderItem {
