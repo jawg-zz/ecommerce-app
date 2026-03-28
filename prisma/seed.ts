@@ -204,13 +204,8 @@ async function main() {
   ]
 
   for (const product of products) {
-    await prisma.product.upsert({
-      where: { id: product.name.toLowerCase().replace(/\s+/g, '-') },
-      update: product,
-      create: {
-        ...product,
-        id: product.name.toLowerCase().replace(/\s+/g, '-'),
-      },
+    await prisma.product.create({
+      data: product,
     })
   }
   console.log(`Created ${products.length} products`)

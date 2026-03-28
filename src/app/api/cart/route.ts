@@ -4,12 +4,12 @@ import { getCurrentUser } from '@/lib/auth'
 import { getCart, addToCart, updateCartItem, clearCart } from '@/lib/cart'
 
 const addToCartSchema = z.object({
-  productId: z.string().min(1),
+  productId: z.string().uuid(),
   quantity: z.number().int().min(1).default(1),
 })
 
 const updateCartSchema = z.object({
-  productId: z.string().min(1),
+  productId: z.string().uuid(),
   quantity: z.number().int().min(0),
 })
 
