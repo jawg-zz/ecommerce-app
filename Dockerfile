@@ -1,8 +1,8 @@
-FROM node:20-slim AS base
+FROM node:20-bullseye-slim AS base
 
 FROM base AS deps
 RUN apt-get update && apt-get install -y \
-    libssl1.1 \
+    openssl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
