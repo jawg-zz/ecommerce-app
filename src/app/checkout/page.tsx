@@ -163,6 +163,8 @@ function CheckoutPageContent() {
   const [useSavedAddress, setUseSavedAddress] = useState(false)
   const [cartWarning, setCartWarning] = useState<string | null>(null)
   const [orderNumber, setOrderNumber] = useState('')
+  const [paymentPhone, setPaymentPhone] = useState('')
+  const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'polling' | 'success'>('sending')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
@@ -358,8 +360,8 @@ function CheckoutPageContent() {
     setError('')
     setProcessing(true)
     cancelRef.current = false
-
-    setStatusMessage('Initiating payment...')
+    setPaymentStage('sending')
+    setStatusMessage('Sending payment request...')
 
     try {
       const res = await fetch('/api/checkout', {
@@ -381,8 +383,9 @@ function CheckoutPageContent() {
       }
 
       setCheckoutRequestId(data.checkoutRequestId)
+      setPaymentPhone(phoneNumber)
       setCurrentStep('payment')
-      setStatusMessage('Check your phone for the M-Pesa prompt!')
+      setPaymentStage('waiting')
       setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
 
       pollPaymentStatus(data.checkoutRequestId, data.orderId)
@@ -458,6 +461,7 @@ function CheckoutPageContent() {
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current)
           }
+          setPaymentStage('success')
           setStatusMessage('Payment confirmed! Processing your order...')
           
           const orderNum = data.order?.id || orderId
@@ -487,7 +491,8 @@ function CheckoutPageContent() {
           return prev
         })
 
-        setStatusMessage('Waiting for payment confirmation...')
+        setPaymentStage('polling')
+        setStatusMessage('Waiting for you to enter PIN...')
         pollIntervalRef.current = setTimeout(poll, 3000)
       } catch {
         setTimeRemaining((prev) => {
@@ -567,77 +572,138 @@ function CheckoutPageContent() {
     )
   }
 
+  const getStatusMessage = () => {
+    switch (paymentStage) {
+      case 'sending':
+        return 'Sending payment request...'
+      case 'waiting':
+        return 'Payment request sent! Check your phone now'
+      case 'polling':
+        return 'Waiting for you to enter PIN...'
+      case 'success':
+        return 'Payment confirmed!'
+      default:
+        return statusMessage || 'Processing your payment...'
+    }
+  }
+
   if (currentStep === 'payment') {
     return (
       <div className="py-8">
         <div className="container-custom">
           <CheckoutSteps currentStep={currentStep} />
           
-          <div className="max-w-md mx-auto">
-            <div className="card p-6 text-center">
+          <div className="max-w-lg mx-auto">
+            <div className="card p-8 text-center">
               <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                  </svg>
+                <div className="relative">
+                  <div className={`w-24 h-24 bg-green-100 rounded-full flex items-center justify-center ${paymentStage === 'waiting' || paymentStage === 'polling' ? 'animate-pulse' : ''}`}>
+                    <svg className="w-12 h-12 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                  </div>
+                  {(paymentStage === 'waiting' || paymentStage === 'polling') && (
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
+                    </div>
+                  )}
                 </div>
               </div>
               
-              <h2 className="text-xl font-semibold mb-2">M-Pesa Payment</h2>
-              <p className="text-slate-600 mb-4">{statusMessage || 'Processing your payment...'}</p>
+              <h2 className="text-2xl font-bold mb-2">Check Your Phone</h2>
+              <p className="text-slate-600 mb-6">{getStatusMessage()}</p>
               
-              <div className="bg-slate-100 rounded-lg p-4 mb-6">
-                <div className="text-3xl font-mono font-bold text-slate-700">
-                  KES {formatPrice(total).replace('KES', '').trim()}
+              {paymentPhone && (
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6">
+                  <p className="text-sm text-green-700 mb-1">Payment request sent to:</p>
+                  <p className="text-2xl font-bold text-green-800">{formatPhoneForDisplay(paymentPhone)}</p>
                 </div>
-                <div className="text-3xl font-mono font-bold text-green-600">
-                  {formatTime(timeRemaining)}
+              )}
+
+              <div className="bg-slate-100 rounded-xl p-5 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-left">
+                    <p className="text-sm text-slate-500">Amount</p>
+                    <p className="text-2xl font-bold text-slate-700">KES {formatPrice(total).replace('KES', '').trim()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-slate-500">Time remaining</p>
+                    <p className="text-2xl font-bold text-green-600">{formatTime(timeRemaining)}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">Payment expires in</p>
+                <p className="text-xs text-slate-500 text-center">You have {formatTime(timeRemaining)} to complete payment on your phone</p>
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-4 mb-6 text-left">
-                <p className="font-medium text-blue-800 mb-2">How to pay:</p>
-                <ol className="text-sm text-blue-700 space-y-1">
-                  <li>1. Check your phone for the M-Pesa prompt</li>
-                  <li>2. Enter your M-Pesa PIN</li>
-                  <li>3. Confirm the amount: <strong>KES {formatPrice(total).replace('KES', '').trim()}</strong></li>
-                </ol>
+              <div className="bg-blue-50 rounded-xl p-5 mb-6 text-left">
+                <p className="font-semibold text-blue-800 mb-4 text-lg">How to pay:</p>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">1</div>
+                    <div>
+                      <p className="font-medium text-blue-800">Check your phone</p>
+                      <p className="text-sm text-blue-600">Look for the M-Pesa payment prompt</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">2</div>
+                    <div>
+                      <p className="font-medium text-blue-800">Enter your PIN</p>
+                      <p className="text-sm text-blue-600">Type your M-Pesa PIN to confirm</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">3</div>
+                    <div>
+                      <p className="font-medium text-blue-800">Wait for confirmation</p>
+                      <p className="text-sm text-blue-600">We'll update automatically when done</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {processing ? (
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-              ) : (
-                <div className="text-sm text-slate-500 mb-4">
-                  Waiting for payment confirmation...
+              {(paymentStage === 'waiting' || paymentStage === 'polling') && (
+                <div className="flex items-center justify-center gap-2 mb-6 text-slate-500">
+                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  <span className="text-sm">Waiting for payment...</span>
                 </div>
               )}
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-                  {error}
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-left">
+                  <p className="font-medium">{error}</p>
                 </div>
               )}
 
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={cancelPayment}
-                  className="px-6 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
+                <p className="font-medium text-yellow-800 mb-2">Didn't receive the prompt?</p>
+                <ul className="text-sm text-yellow-700 space-y-1 mb-3">
+                  <li>• Make sure your phone is on and has signal</li>
+                  <li>• Check your M-Pesa balance</li>
+                  <li>• You may have insufficient funds</li>
+                </ul>
                 <button
                   onClick={handleRetry}
-                  className="px-6 py-2 text-blue-600 hover:underline text-sm"
+                  className="w-full py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition-colors"
                 >
-                  Didn't receive prompt? Try again
+                  Try Again
                 </button>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-200">
+              <button
+                onClick={cancelPayment}
+                className="w-full py-3 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium"
+              >
+                Cancel Payment
+              </button>
+
+              <div className="mt-6 pt-4 border-t border-slate-200">
                 <p className="text-xs text-slate-500">
-                  Having trouble? Contact support with reference: {checkoutRequestId.slice(0, 8).toUpperCase()}
+                  Reference: {checkoutRequestId.slice(0, 8).toUpperCase()}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Need help? Contact support with the reference above
                 </p>
               </div>
             </div>
