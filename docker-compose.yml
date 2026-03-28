@@ -22,7 +22,6 @@ services:
       - "traefik.http.services.ecommerce.loadbalancer.server.port=3000"
     restart: unless-stopped
     networks:
-      - ecommerce-network
       - dokploy-network
 
   postgres:
@@ -40,7 +39,7 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - ecommerce-network
+      - dokploy-network
 
   redis:
     image: redis:7-alpine
@@ -53,14 +52,12 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - ecommerce-network
+      - dokploy-network
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  ecommerce-network:
-    driver: bridge
   dokploy-network:
     external: true
