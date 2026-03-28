@@ -1,7 +1,9 @@
 FROM node:20-alpine AS base
 
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl-dev
+RUN apk add --no-cache libc6-compat
+# Install OpenSSL 1.1 from Alpine 3.16 repo (last version with openssl1.1-compat)
+RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main openssl1.1-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
