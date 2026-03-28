@@ -1,9 +1,10 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
-# Install OpenSSL 1.1 from Alpine 3.16 repo (last version with openssl1.1-compat)
-RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main openssl1.1-compat
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
