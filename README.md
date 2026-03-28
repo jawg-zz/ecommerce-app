@@ -1,13 +1,13 @@
 # E-Commerce Application
 
-A production-ready e-commerce application built with Next.js 14, PostgreSQL, Redis, and Stripe.
+A production-ready e-commerce application built with Next.js 14, PostgreSQL, Redis, and M-Pesa.
 
 ## Features
 
 - **Product Catalog**: Browse products by category, search, and filter
 - **Shopping Cart**: Redis-backed cart with persistent storage
 - **User Authentication**: JWT-based auth with secure HTTP-only cookies
-- **Checkout**: Stripe integration for payments (test mode)
+- **Checkout**: M-Pesa (Safaricom Daraja API) integration for payments
 - **Order Management**: Track order status and history
 - **Admin Panel**: Manage products and orders
 
@@ -17,7 +17,7 @@ A production-ready e-commerce application built with Next.js 14, PostgreSQL, Red
 - **Database**: PostgreSQL
 - **Cache**: Redis
 - **ORM**: Prisma
-- **Payments**: Stripe
+- **Payments**: M-Pesa (Safaricom Daraja API)
 - **Styling**: Tailwind CSS
 - **Container**: Docker Compose with Traefik
 
@@ -39,8 +39,11 @@ cp .env.example .env
 ```
 
 3. Update the environment variables in `.env`:
-   - `STRIPE_SECRET_KEY`: Your Stripe test secret key
-   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Your Stripe test publishable key
+   - `MPESA_CONSUMER_KEY`: Your M-Pesa Daraja API consumer key
+   - `MPESA_CONSUMER_SECRET`: Your M-Pesa Daraja API consumer secret
+   - `MPESA_SHORTCODE`: Your M-Pesa business shortcode
+   - `MPESA_PASSKEY`: Your M-Pesa passkey
+   - `MPESA_CALLBACK_URL`: Your callback URL for payment notifications
 
 4. Start the application:
 
@@ -85,12 +88,16 @@ After seeding, you can log in with these accounts:
 - **Admin**: admin@ecommerce.local / admin123
 - **User**: user@ecommerce.local / admin123
 
-## Stripe Test Cards
+## M-Pesa Setup
 
-Use these test cards for checkout:
+To enable M-Pesa payments:
 
-- **Success**: 4242 4242 4242 4242
-- **Decline**: 4000 0000 0000 0002
+1. Register at [Safaricom Developer Portal](https://developer.safaricom.co.ke/)
+2. Create a new app to get consumer key and secret
+3. Configure your M-Pesa shortcode and passkey
+4. Set the callback URL to receive payment notifications
+
+For testing, use the sandbox environment (default in development).
 
 ## API Endpoints
 
@@ -118,7 +125,8 @@ Use these test cards for checkout:
 ### Orders (Authenticated)
 
 - `GET /api/orders` - List orders
-- `POST /api/checkout` - Create order
+- `POST /api/checkout` - Create order (initiate M-Pesa STK push)
+- `GET /api/checkout?checkoutRequestId=` - Check payment status
 
 ### Admin
 
@@ -142,7 +150,7 @@ src/
 │   ├── orders/         # Orders page
 │   └── login/          # Login page
 ├── components/         # React components
-├── lib/               # Utilities (prisma, redis, auth, etc.)
+├── lib/               # Utilities (prisma, redis, auth, mpesa, etc.)
 ├── types/             # TypeScript types
 └── styles/            # Global styles
 ```
