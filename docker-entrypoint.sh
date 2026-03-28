@@ -2,7 +2,8 @@
 set -e
 
 echo "Running database migrations..."
-npx prisma migrate deploy
+npm run prisma:generate
+npx --no-install prisma migrate deploy
 
 echo "Starting application..."
 exec node server.js
