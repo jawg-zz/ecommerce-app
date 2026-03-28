@@ -367,7 +367,7 @@ function CheckoutPageContent() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shippingAddress: address, phoneNumber: phoneNumber }),
+        body: JSON.stringify({ shippingAddress: address, phoneNumber }),
       })
 
       const data = await res.json()
@@ -427,7 +427,7 @@ function CheckoutPageContent() {
     }
 
     retryDataRef.current = { shippingAddress, phone }
-    retryPayment(shippingAddress, phone)
+    retryPayment(shippingAddress, phone.replace(/\D/g, ''))
   }
 
   const pollPaymentStatus = async (checkoutId: string, orderId: string) => {
