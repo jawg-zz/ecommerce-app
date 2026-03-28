@@ -1,20 +1,18 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
-import { useToast } from '@/components/Toast'
 import { formatPrice } from '@/lib/utils'
 import {
   validatePhone,
-  validatePhoneForDisplay,
-  validateRequired,
   getMpesaErrorMessage,
   isNetworkError,
 } from '@/lib/validation'
+import { KENYA_COUNTIES, ShippingAddress } from '@/types'
 
-type CheckoutStep = 'form' | 'processing' | 'success'
+type CheckoutStep = 'shipping' | 'payment' | 'confirmation'
 
 const PAYMENT_TIMEOUT_SECONDS = 120
 
@@ -26,14 +24,133 @@ interface FormErrors {
   zipCode?: string
 }
 
-export default function CheckoutPage() {
+interface SavedAddress {
+  address: ShippingAddress
+  phone: string
+}
+
+function formatPhoneNumber(value: string): string {
+  const cleaned = value.replace(/\D/g, '')
+  if (cleaned.length <= 4) return cleaned
+  if (cleaned.length <= 7) return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`
+  return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7, 10)}`
+}
+
+function formatPhoneForDisplay(phone: string): string {
+  const cleaned = phone.replace(/\D/g, '')
+  if (cleaned.startsWith('254') && cleaned.length === 12) {
+    return `+254 ${cleaned.slice(3, 6)} ${cleaned.slice(6, 9)} ${cleaned.slice(9)}`
+  }
+  if (cleaned.startsWith('0') && cleaned.length === 10) {
+    return `0${cleaned.slice(1, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`
+  }
+  return formatPhoneNumber(cleaned)
+}
+
+function getEstimatedDelivery(): string {
+  const today = new Date()
+  const deliveryDate = new Date(today)
+  deliveryDate.setDate(today.getDate() + 3)
+  return deliveryDate.toLocaleDateString('en-KE', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
+  const steps: { key: CheckoutStep; label: string }[] = [
+    { key: 'shipping', label: 'Shipping' },
+    { key: 'payment', label: 'Payment' },
+    { key: 'confirmation', label: 'Confirmation' },
+  ]
+
+  const getStepStatus = (stepKey: CheckoutStep) => {
+    const stepIndex = steps.findIndex(s => s.key === stepKey)
+    const currentIndex = steps.findIndex(s => s.key === currentStep)
+    if (stepIndex < currentIndex) return 'completed'
+    if (stepIndex === currentIndex) return 'current'
+    return 'pending'
+  }
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-center">
+        {steps.map((step, index) => {
+          const status = getStepStatus(step.key)
+          return (
+            <div key={step.key} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
+                    status === 'completed'
+                      ? 'bg-green-500 text-white'
+                      : status === 'current'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  {status === 'completed' ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    index + 1
+                  )}
+                </div>
+                <span className={`text-xs mt-1 ${status === 'current' ? 'text-blue-600 font-medium' : 'text-slate-500'}`}>
+                  {step.label}
+                </span>
+              </div>
+              {index < steps.length - 1 && (
+                <div
+                  className={`w-16 sm:w-24 h-0.5 mx-2 ${
+                    getStepStatus(steps[index + 1].key) === 'completed' ||
+                    getStepStatus(steps[index + 1].key) === 'current'
+                      ? 'bg-green-500'
+                      : 'bg-slate-200'
+                  }`}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function SecurityBadges() {
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
+      <div className="flex items-center gap-1">
+        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+        <span>SSL Secured</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+        </svg>
+        <span>Your information is secure</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        <span>M-Pesa Trusted</span>
+      </div>
+    </div>
+  )
+}
+
+function CheckoutPageContent() {
   const router = useRouter()
   const { user, cart, setCart, refreshCart } = useApp()
-  const { showToast } = useToast()
-  const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
-  const [step, setStep] = useState<CheckoutStep>('form')
+  const [currentStep, setCurrentStep] = useState<CheckoutStep>('shipping')
   const [phone, setPhone] = useState('')
   const [phoneValid, setPhoneValid] = useState(false)
   const [checkoutRequestId, setCheckoutRequestId] = useState('')
@@ -42,11 +159,16 @@ export default function CheckoutPage() {
   const [phoneError, setPhoneError] = useState('')
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
+  const [useSavedAddress, setUseSavedAddress] = useState(false)
+  const [cartWarning, setCartWarning] = useState<string | null>(null)
+  const [orderNumber, setOrderNumber] = useState('')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const cancelRef = useRef(false)
-  const retryDataRef = useRef<{ shippingAddress: typeof shippingAddress; phone: string } | null>(null)
+  const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
+  const initialCartRef = useRef<string>('')
 
-  const [shippingAddress, setShippingAddress] = useState({
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     name: '',
     address: '',
     city: '',
@@ -60,9 +182,38 @@ export default function CheckoutPage() {
       router.push('/login')
       return
     }
-
     refreshCart()
   }, [user, router, refreshCart])
+
+  useEffect(() => {
+    const fetchSavedAddresses = async () => {
+      if (!user) return
+      try {
+        const res = await fetch('/api/orders')
+        if (res.ok) {
+          const orders = await res.json()
+          const addresses: SavedAddress[] = []
+          const seen = new Set<string>()
+          orders.forEach((order: { shippingAddress: ShippingAddress | null }) => {
+            if (order.shippingAddress) {
+              const key = JSON.stringify(order.shippingAddress)
+              if (!seen.has(key)) {
+                seen.add(key)
+                addresses.push({
+                  address: order.shippingAddress,
+                  phone: '',
+                })
+              }
+            }
+          })
+          setSavedAddresses(addresses.slice(0, 3))
+        }
+      } catch (e) {
+        console.error('Failed to fetch saved addresses:', e)
+      }
+    }
+    fetchSavedAddresses()
+  }, [user])
 
   useEffect(() => {
     return () => {
@@ -72,11 +223,45 @@ export default function CheckoutPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (cart.items.length > 0 && initialCartRef.current) {
+      const initialItems = JSON.parse(initialCartRef.current)
+      const currentIds = cart.items.map(i => `${i.productId}:${i.quantity}`)
+      const initialIds = initialItems.map((i: { productId: string; quantity: number }) => `${i.productId}:${i.quantity}`)
+      
+      const hasChanged = currentIds.some((id: string) => !initialIds.includes(id)) || 
+                        initialIds.some((id: string) => !currentIds.includes(id))
+      
+      if (hasChanged) {
+        setCartWarning('Your cart has changed. Please review before completing payment.')
+      }
+    } else if (cart.items.length > 0) {
+      initialCartRef.current = JSON.stringify(cart.items.map(i => ({ productId: i.productId, quantity: i.quantity })))
+    }
+  }, [cart.items, setCart])
+
+  useEffect(() => {
+    if (cart.items.length === 0 && currentStep !== 'confirmation') {
+      router.push('/cart')
+    }
+  }, [cart.items.length, currentStep, router])
+
+  const handleUseSavedAddress = (saved: SavedAddress) => {
+    setShippingAddress(saved.address)
+    if (saved.phone) {
+      setPhone(saved.phone)
+      const validation = validatePhone(saved.phone)
+      setPhoneValid(validation.isValid)
+    }
+    setUseSavedAddress(false)
+  }
+
   const validateField = (field: keyof FormErrors, value: string) => {
     switch (field) {
       case 'name':
         if (!value.trim()) return 'Full name is required'
         if (value.trim().length < 2) return 'Name must be at least 2 characters'
+        if (!/^[a-zA-Z\s'-]+$/.test(value)) return 'Name contains invalid characters'
         return undefined
       case 'address':
         if (!value.trim()) return 'Address is required'
@@ -88,18 +273,17 @@ export default function CheckoutPage() {
         return undefined
       case 'state':
         if (!value.trim()) return 'County is required'
-        if (value.trim().length < 2) return 'County must be at least 2 characters'
         return undefined
       case 'zipCode':
         if (!value.trim()) return 'ZIP code is required'
-        if (value.trim().length < 3) return 'ZIP code must be at least 3 characters'
+        if (!/^\d{5,6}$/.test(value.replace(/\s/g, ''))) return 'ZIP code must be 5-6 digits'
         return undefined
       default:
         return undefined
     }
   }
 
-  const handleAddressChange = (field: keyof typeof shippingAddress, value: string) => {
+  const handleAddressChange = (field: keyof ShippingAddress, value: string) => {
     setShippingAddress((prev) => ({ ...prev, [field]: value }))
     
     if (touched[field]) {
@@ -117,10 +301,12 @@ export default function CheckoutPage() {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setPhone(value)
+    const formatted = formatPhoneNumber(value)
+    setPhone(formatted)
     
-    if (value) {
-      const validation = validatePhone(value)
+    const cleaned = formatted.replace(/\D/g, '')
+    if (cleaned.length > 0) {
+      const validation = validatePhone(cleaned)
       if (!validation.isValid) {
         setPhoneError(validation.error || 'Invalid phone number')
         setPhoneValid(false)
@@ -134,16 +320,16 @@ export default function CheckoutPage() {
     }
   }
 
-  const isFormValid = () => {
+  const isFormValid = useCallback(() => {
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
     const stateError = validateField('state', shippingAddress.state)
     const zipCodeError = validateField('zipCode', shippingAddress.zipCode)
-    const phoneValidation = validatePhone(phone)
+    const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
     return !nameError && !addressError && !cityError && !stateError && !zipCodeError && phoneValidation.isValid
-  }
+  }, [shippingAddress, phone])
 
   const cancelPayment = useCallback(() => {
     cancelRef.current = true
@@ -151,7 +337,7 @@ export default function CheckoutPage() {
       clearInterval(pollIntervalRef.current)
       pollIntervalRef.current = null
     }
-    setStep('form')
+    setCurrentStep('shipping')
     setError('')
     setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
   }, [])
@@ -168,19 +354,18 @@ export default function CheckoutPage() {
     }
   }
 
-  const retryPayment = async (address: typeof shippingAddress, phoneNumber: string) => {
+  const retryPayment = async (address: ShippingAddress, phoneNumber: string) => {
     setError('')
     setProcessing(true)
     cancelRef.current = false
 
-    setLoading(true)
     setStatusMessage('Initiating payment...')
 
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shippingAddress: address, phone: phoneNumber }),
+        body: JSON.stringify({ shippingAddress: address, phoneNumber: phoneNumber }),
       })
 
       const data = await res.json()
@@ -192,17 +377,15 @@ export default function CheckoutPage() {
           setError(data.error || 'Checkout failed')
         }
         setProcessing(false)
-        setLoading(false)
         return
       }
 
       setCheckoutRequestId(data.checkoutRequestId)
-      setStep('processing')
-      setLoading(false)
+      setCurrentStep('payment')
       setStatusMessage('Check your phone for the M-Pesa prompt!')
       setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
 
-      pollPaymentStatus(data.checkoutRequestId, address)
+      pollPaymentStatus(data.checkoutRequestId, data.orderId)
     } catch (err) {
       if (isNetworkError(err)) {
         setError('Unable to connect. Please check your internet connection.')
@@ -210,11 +393,10 @@ export default function CheckoutPage() {
         setError('An error occurred during checkout')
       }
       setProcessing(false)
-      setLoading(false)
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmitShipping = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched({ name: true, address: true, city: true, state: true, zipCode: true })
     
@@ -223,7 +405,7 @@ export default function CheckoutPage() {
     const cityError = validateField('city', shippingAddress.city)
     const stateError = validateField('state', shippingAddress.state)
     const zipCodeError = validateField('zipCode', shippingAddress.zipCode)
-    const phoneValidation = validatePhone(phone)
+    const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
     setFormErrors({
       name: nameError,
@@ -245,7 +427,7 @@ export default function CheckoutPage() {
     retryPayment(shippingAddress, phone)
   }
 
-  const pollPaymentStatus = async (checkoutId: string, address: typeof shippingAddress) => {
+  const pollPaymentStatus = async (checkoutId: string, orderId: string) => {
     const timerInterval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
@@ -254,7 +436,7 @@ export default function CheckoutPage() {
             clearInterval(pollIntervalRef.current)
           }
           setError('Payment timed out. Please try again.')
-          setStep('form')
+          setCurrentStep('shipping')
           return 0
         }
         return prev - 1
@@ -268,7 +450,7 @@ export default function CheckoutPage() {
       }
 
       try {
-        const res = await fetch(`/api/checkout?checkoutRequestId=${checkoutId}`)
+        const res = await fetch(`/api/checkout?orderId=${orderId}`)
         const data = await res.json()
 
         if (data.status === 'success') {
@@ -277,24 +459,11 @@ export default function CheckoutPage() {
             clearInterval(pollIntervalRef.current)
           }
           setStatusMessage('Payment confirmed! Processing your order...')
-
-          const completeRes = await fetch('/api/checkout', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              checkoutRequestId,
-              shippingAddress: address,
-            }),
-          })
-
-          if (completeRes.ok) {
-            setStep('success')
-            setCart({ items: [], total: 0 })
-            router.push(`/orders?success=true`)
-          } else {
-            setError('Failed to complete order')
-            setStep('form')
-          }
+          
+          const orderNum = data.order?.id || orderId
+          setOrderNumber(orderNum.slice(0, 8).toUpperCase())
+          setCurrentStep('confirmation')
+          setCart({ items: [], total: 0 })
           return
         }
 
@@ -304,7 +473,7 @@ export default function CheckoutPage() {
             clearInterval(pollIntervalRef.current)
           }
           setError(getMpesaErrorMessage(data.errorCode))
-          setStep('form')
+          setCurrentStep('shipping')
           return
         }
 
@@ -312,7 +481,7 @@ export default function CheckoutPage() {
           if (prev <= 1) {
             clearInterval(timerInterval)
             setError('Payment timed out. Please try again.')
-            setStep('form')
+            setCurrentStep('shipping')
             return 0
           }
           return prev
@@ -325,7 +494,7 @@ export default function CheckoutPage() {
           if (prev <= 1) {
             clearInterval(timerInterval)
             setError('Failed to verify payment. Please try again.')
-            setStep('form')
+            setCurrentStep('shipping')
             return 0
           }
           return prev
@@ -337,8 +506,145 @@ export default function CheckoutPage() {
     pollIntervalRef.current = setTimeout(poll, 3000)
   }
 
+  const subtotal = cart.total
+  const shipping = 0
+  const tax = 0
+  const total = subtotal + shipping + tax
+
   if (!user) {
     return null
+  }
+
+  if (currentStep === 'confirmation') {
+    return (
+      <div className="py-8">
+        <div className="container-custom">
+          <div className="max-w-lg mx-auto text-center">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Order Confirmed!</h1>
+            <p className="text-slate-600 mb-2">Thank you for your purchase.</p>
+            <p className="text-slate-500 mb-6">
+              Order Number: <span className="font-mono font-medium">{orderNumber}</span>
+            </p>
+            
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-left">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                </svg>
+                <div>
+                  <p className="font-medium text-green-800">Confirmation sent!</p>
+                  <p className="text-sm text-green-700">
+                    A confirmation has been sent to your phone.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href={`/orders?success=true`} className="flex-1 btn-primary py-3 text-center">
+                View Order
+              </Link>
+              <Link href="/products" className="flex-1 btn-secondary py-3 text-center">
+                Continue Shopping
+              </Link>
+            </div>
+            
+            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+              <p className="text-sm text-slate-600">
+                Need help? <Link href="#" className="text-blue-600 hover:underline">Contact support</Link> with your order number {orderNumber}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (currentStep === 'payment') {
+    return (
+      <div className="py-8">
+        <div className="container-custom">
+          <CheckoutSteps currentStep={currentStep} />
+          
+          <div className="max-w-md mx-auto">
+            <div className="card p-6 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                  </svg>
+                </div>
+              </div>
+              
+              <h2 className="text-xl font-semibold mb-2">M-Pesa Payment</h2>
+              <p className="text-slate-600 mb-4">{statusMessage || 'Processing your payment...'}</p>
+              
+              <div className="bg-slate-100 rounded-lg p-4 mb-6">
+                <div className="text-3xl font-mono font-bold text-slate-700">
+                  KES {formatPrice(total).replace('KES', '').trim()}
+                </div>
+                <div className="text-3xl font-mono font-bold text-green-600">
+                  {formatTime(timeRemaining)}
+                </div>
+                <p className="text-sm text-slate-500 mt-1">Payment expires in</p>
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-4 mb-6 text-left">
+                <p className="font-medium text-blue-800 mb-2">How to pay:</p>
+                <ol className="text-sm text-blue-700 space-y-1">
+                  <li>1. Check your phone for the M-Pesa prompt</li>
+                  <li>2. Enter your M-Pesa PIN</li>
+                  <li>3. Confirm the amount: <strong>KES {formatPrice(total).replace('KES', '').trim()}</strong></li>
+                </ol>
+              </div>
+
+              {processing ? (
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+              ) : (
+                <div className="text-sm text-slate-500 mb-4">
+                  Waiting for payment confirmation...
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={cancelPayment}
+                  className="px-6 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                
+                <button
+                  onClick={handleRetry}
+                  className="px-6 py-2 text-blue-600 hover:underline text-sm"
+                >
+                  Didn't receive prompt? Try again
+                </button>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="text-xs text-slate-500">
+                  Having trouble? Contact support with reference: {checkoutRequestId.slice(0, 8).toUpperCase()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (cart.items.length === 0) {
@@ -355,57 +661,76 @@ export default function CheckoutPage() {
     )
   }
 
-  if (step === 'processing') {
-    return (
-      <div className="py-8">
-        <div className="container-custom">
-          <div className="max-w-md mx-auto text-center">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <h2 className="text-xl font-semibold mb-2">M-Pesa Payment</h2>
-            <p className="text-slate-600 mb-4">{statusMessage}</p>
-            
-            <div className="bg-slate-100 rounded-lg p-4 mb-6">
-              <div className="text-3xl font-mono font-bold text-slate-700">
-                {formatTime(timeRemaining)}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">Payment expires in</p>
-            </div>
-
-            {loading ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            ) : (
-              <p className="text-sm text-slate-500 mb-6">
-                Check your phone for the M-Pesa prompt and enter your PIN to confirm
-              </p>
-            )}
-
-            <button
-              onClick={cancelPayment}
-              className="px-6 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="py-8">
       <div className="container-custom">
-        <h1 className="text-2xl font-bold mb-8">Checkout</h1>
+        <CheckoutSteps currentStep={currentStep} />
+        
+        {cartWarning && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <p className="text-sm text-yellow-700">{cartWarning}</p>
+            </div>
+            <button onClick={() => { setCartWarning(null); refreshCart(); }} className="text-sm text-yellow-700 underline">
+              Refresh
+            </button>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="card p-6">
+            <form onSubmit={handleSubmitShipping} className="card p-6">
               <h2 className="text-lg font-semibold mb-6">Shipping Address</h2>
+
+              {savedAddresses.length > 0 && !useSavedAddress && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-blue-800">Saved Address</span>
+                    <button
+                      type="button"
+                      onClick={() => setUseSavedAddress(true)}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Use saved address
+                    </button>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    {savedAddresses[0].address.name}, {savedAddresses[0].address.city}
+                  </p>
+                </div>
+              )}
+
+              {useSavedAddress && savedAddresses.length > 0 && (
+                <div className="mb-6 p-4 border border-slate-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-medium">Select an address</span>
+                    <button
+                      type="button"
+                      onClick={() => setUseSavedAddress(false)}
+                      className="text-sm text-slate-500 hover:text-slate-700"
+                    >
+                      Enter new address
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {savedAddresses.map((saved, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleUseSavedAddress(saved)}
+                        className="w-full text-left p-3 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                      >
+                        <p className="font-medium">{saved.address.name}</p>
+                        <p className="text-sm text-slate-600">{saved.address.address}</p>
+                        <p className="text-sm text-slate-600">{saved.address.city}, {saved.address.state} {saved.address.zipCode}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
@@ -429,6 +754,7 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="text"
+                    autoComplete="name"
                     value={shippingAddress.name}
                     onChange={(e) => handleAddressChange('name', e.target.value)}
                     onBlur={() => handleBlur('name')}
@@ -446,11 +772,12 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="text"
+                    autoComplete="street-address"
                     value={shippingAddress.address}
                     onChange={(e) => handleAddressChange('address', e.target.value)}
                     onBlur={() => handleBlur('address')}
                     className={`input-field ${touched.address && formErrors.address ? 'border-red-500' : ''}`}
-                    placeholder="123 Main Street"
+                    placeholder="123 Main Street, Apt 4B"
                   />
                   {touched.address && formErrors.address && (
                     <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
@@ -464,6 +791,7 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="address-level2"
                       value={shippingAddress.city}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       onBlur={() => handleBlur('city')}
@@ -479,14 +807,20 @@ export default function CheckoutPage() {
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       County <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
+                      autoComplete="address-level1"
                       value={shippingAddress.state}
                       onChange={(e) => handleAddressChange('state', e.target.value)}
                       onBlur={() => handleBlur('state')}
                       className={`input-field ${touched.state && formErrors.state ? 'border-red-500' : ''}`}
-                      placeholder="Nairobi"
-                    />
+                    >
+                      <option value="">Select County</option>
+                      {KENYA_COUNTIES.map((county) => (
+                        <option key={county} value={county}>
+                          {county}
+                        </option>
+                      ))}
+                    </select>
                     {touched.state && formErrors.state && (
                       <p className="text-red-500 text-xs mt-1">{formErrors.state}</p>
                     )}
@@ -500,6 +834,7 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="postal-code"
                       value={shippingAddress.zipCode}
                       onChange={(e) => handleAddressChange('zipCode', e.target.value)}
                       onBlur={() => handleBlur('zipCode')}
@@ -528,104 +863,212 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    M-Pesa Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      placeholder="0712345678 or 254712345678"
-                      value={phone}
-                      onChange={handlePhoneChange}
-                      className={`input-field pr-10 ${phoneError && phone ? 'border-red-500' : ''} ${phoneValid ? 'border-green-500' : ''}`}
-                    />
-                    {phoneValid && (
-                      <svg
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
+                <div className="border-t border-slate-200 pt-6 mt-6">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    M-Pesa Payment
+                  </h3>
+                  
+                  <div className="bg-green-50 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-green-700 mb-2 font-medium">How to pay with M-Pesa:</p>
+                    <ol className="text-sm text-green-600 space-y-1">
+                      <li>1. Enter your M-Pesa phone number below</li>
+                      <li>2. Click &quot;Pay with M-Pesa&quot;</li>
+                      <li>3. Check your phone for the payment prompt</li>
+                      <li>4. Enter your M-Pesa PIN to confirm</li>
+                    </ol>
                   </div>
-                  {phoneError && phone && (
-                    <p className="text-red-500 text-xs mt-1">{phoneError}</p>
-                  )}
-                  <p className="text-xs text-slate-500 mt-1">
-                    Enter phone number (e.g., 0712345678 or 254712345678)
-                  </p>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      M-Pesa Phone Number <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        placeholder="0712 345 678"
+                        value={phone}
+                        onChange={handlePhoneChange}
+                        className={`input-field pr-10 ${phoneError && phone ? 'border-red-500' : ''} ${phoneValid ? 'border-green-500' : ''}`}
+                      />
+                      {phoneValid && (
+                        <svg
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    {phoneError && phone && (
+                      <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">
+                      Format: 0712 345 678 or 254 712 345 678
+                    </p>
+                  </div>
                 </div>
               </div>
             </form>
+
+            <SecurityBadges />
           </div>
 
-          <div className="card p-6 h-fit sticky top-24">
-            <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+          <div className="lg:col-span-1">
+            <div className="card p-6 h-fit lg:sticky lg:top-24">
+              <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
 
-            <div className="space-y-3 mb-4">
-              {cart.items.map((item) => (
-                <div key={item.productId} className="flex justify-between text-sm">
-                  <span className="text-slate-600">
-                    {item.product.name} x {item.quantity}
-                  </span>
-                  <span>{formatPrice(item.product.price * item.quantity)}</span>
+              <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
+                {cart.items.map((item) => (
+                  <div key={item.productId} className="flex gap-3">
+                    <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                      {item.product.image ? (
+                        <img
+                          src={item.product.image}
+                          alt={item.product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{item.product.name}</p>
+                      <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
+                      <p className="text-sm font-medium text-slate-700">{formatPrice(item.product.price * item.quantity)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-200 pt-4 space-y-2 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Items ({cart.items.reduce((sum, i) => sum + i.quantity, 0)})</span>
+                  <span>{formatPrice(subtotal)}</span>
                 </div>
-              ))}
-            </div>
-
-            <div className="border-t border-slate-200 pt-4 space-y-2 mb-4">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal</span>
-                <span>{formatPrice(cart.total)}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Shipping</span>
+                  <span className="text-green-600">Free</span>
+                </div>
+                {tax > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Tax</span>
+                    <span>{formatPrice(tax)}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Shipping</span>
-                <span>Free</span>
-              </div>
-            </div>
 
-            <div className="border-t border-slate-200 pt-4 mb-6">
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>{formatPrice(cart.total)}</span>
+              <div className="border-t border-slate-200 pt-4 mb-4">
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total</span>
+                  <span className="text-green-600">{formatPrice(total)}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">KES (Kenyan Shillings)</p>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              disabled={processing || !isFormValid()}
-              className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {processing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              <div className="bg-slate-50 rounded-lg p-3 mb-4">
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <svg className="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.05 3.636a1 1 0 010 1.414 7 7 0 000 9.9 1 1 0 11-1.414 1.414 9 9 0 010-12.728 1 1 0 011.414 0zm9.9 0a1 1 0 011.414 0 9 9 0 010 12.728 1 1 0 11-1.414-1.414 7 7 0 000-9.9 1 1 0 010-1.414zM7.879 6.464a1 1 0 010 1.414 3 3 0 000 4.243 1 1 0 11-1.415 1.414 5 5 0 010-7.07 1 1 0 011.415 0zm4.242 0a1 1 0 011.415 0 5 5 0 010 7.072 1 1 0 01-1.415-1.415 3 3 0 000-4.242 1 1 0 010-1.415z" clipRule="evenodd" />
                   </svg>
-                  Pay {formatPrice(cart.total)} with M-Pesa
-                </>
-              )}
-            </button>
+                  <span>Estimated delivery: <strong>{getEstimatedDelivery()}</strong></span>
+                </div>
+              </div>
 
-            <div className="bg-green-50 p-3 rounded-lg mt-4">
-              <p className="text-xs text-green-700 text-center">
-                You will receive a payment prompt on your phone
-              </p>
+              <button
+                type="submit"
+                onClick={handleSubmitShipping}
+                disabled={processing || !isFormValid()}
+                className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed sticky bottom-4 lg:static z-10"
+              >
+                {processing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    Pay {formatPrice(total)} with M-Pesa
+                  </>
+                )}
+              </button>
+
+              <div className="bg-green-50 p-3 rounded-lg mt-4">
+                <div className="flex items-center justify-center gap-2 text-xs text-green-700">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span>Secure payment via M-Pesa</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+function CheckoutLoading() {
+  return (
+    <div className="py-8">
+      <div className="container-custom">
+        <div className="max-w-7xl mx-auto">
+          <div className="h-8 bg-slate-200 rounded w-48 mb-8 animate-pulse" />
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="card p-6">
+                <div className="h-6 bg-slate-200 rounded w-32 mb-6 animate-pulse" />
+                <div className="space-y-4">
+                  <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-1">
+              <div className="card p-6">
+                <div className="h-6 bg-slate-200 rounded w-32 mb-4 animate-pulse" />
+                <div className="space-y-3">
+                  <div className="h-16 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-16 bg-slate-200 rounded animate-pulse" />
+                </div>
+                <div className="h-12 bg-slate-200 rounded mt-6 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CheckoutWithParams() {
+  useSearchParams()
+  return <CheckoutPageContent />
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoading />}>
+      <CheckoutWithParams />
+    </Suspense>
   )
 }

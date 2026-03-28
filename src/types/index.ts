@@ -5,6 +5,31 @@ export interface User {
   role: 'USER' | 'ADMIN'
 }
 
+export const KENYA_COUNTIES = [
+  'Nairobi',
+  'Mombasa',
+  'Kisumu',
+  'Nakuru',
+  'Eldoret',
+  'Thika',
+  'Malindi',
+  'Kitale',
+  'Garissa',
+  'Nyeri',
+  'Meru',
+  'Kakamega',
+  'Kericho',
+  'Migori',
+  'Machakos',
+  'Lamu',
+  'Naivasha',
+  'Nanyuki',
+  'Kisii',
+  'Bungoma',
+] as const
+
+export type KenyaCounty = typeof KENYA_COUNTIES[number]
+
 export interface Product {
   id: string
   name: string
