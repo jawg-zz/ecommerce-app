@@ -8,7 +8,7 @@ interface Product {
   id: string
   name: string
   description: string | null
-  price: number | { toNumber(): number }
+  price: number
   category: 'ELECTRONICS' | 'CLOTHING' | 'BOOKS'
   image: string | null
   stock: number

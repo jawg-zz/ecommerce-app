@@ -8,7 +8,7 @@ interface Product {
   id: string
   name: string
   description: string | null
-  price: number | { toNumber(): number }
+  price: number
   category: 'ELECTRONICS' | 'CLOTHING' | 'BOOKS'
   image: string | null
   stock: number
@@ -88,7 +88,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </h3>
         <p className="text-blue-600 font-bold text-lg mb-3">
-          {formatPrice(typeof product.price === 'number' ? product.price : product.price.toNumber())}
+          {formatPrice(product.price)}
         </p>
         <button
           onClick={handleAddToCart}
