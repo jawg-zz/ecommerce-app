@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
 import { useToast } from '@/components/Toast'
@@ -13,9 +13,10 @@ interface FormErrors {
   password?: string
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
-  const { setUser } = useApp()
+  const searchParams = useSearchParams()
+  const { setUser, refreshCart } = useApp()
   const { showToast } = useToast()
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -146,8 +147,10 @@ export default function LoginPage() {
       }
 
       setUser(data)
+      await refreshCart()
       showToast(isLogin ? 'Welcome back!' : 'Account created successfully!', 'success')
-      router.push('/')
+      const returnUrl = searchParams.get('returnUrl')
+      router.push(returnUrl || '/')
       router.refresh()
     } catch (err) {
       if (isNetworkError(err)) {
@@ -297,5 +300,28 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-12">
+        <div className="container-custom">
+          <div className="max-w-md mx-auto">
+            <div className="card p-8 animate-pulse">
+              <div className="h-8 bg-slate-200 rounded w-1/2 mx-auto mb-8" />
+              <div className="space-y-4">
+                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-12 bg-slate-200 rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

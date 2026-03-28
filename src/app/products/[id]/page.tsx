@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
+import { ProductCard } from '@/components/ProductCard'
 import { formatPrice } from '@/lib/utils'
 
 interface Product {
@@ -21,6 +22,7 @@ export default function ProductDetailPage() {
   const router = useRouter()
   const { setCart } = useApp()
   const [product, setProduct] = useState<Product | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
@@ -31,6 +33,10 @@ export default function ProductDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setProduct(data)
+        
+        const relatedRes = await fetch(`/api/products?category=${data.category}&limit=4`)
+        const relatedData = await relatedRes.json()
+        setRelatedProducts((relatedData.products || []).filter((p: Product) => p.id !== data.id).slice(0, 4))
       } else {
         router.push('/products')
       }
@@ -185,6 +191,17 @@ export default function ProductDetailPage() {
             </button>
           </div>
         </div>
+
+        {relatedProducts.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold mb-8">Related Products</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {relatedProducts.map((relatedProduct) => (
+                <ProductCard key={relatedProduct.id} product={relatedProduct} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

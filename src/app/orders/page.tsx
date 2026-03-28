@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
 import { formatPrice } from '@/lib/utils'
@@ -24,16 +25,22 @@ interface Order {
   createdAt: string
 }
 
-export default function OrdersPage() {
+function OrdersContent() {
   const { user } = useApp()
+  const searchParams = useSearchParams()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+
+  const statusFilter = searchParams.get('status') || ''
 
   useEffect(() => {
     if (!user) return
 
     const fetchOrders = async () => {
-      const res = await fetch('/api/orders')
+      const params = new URLSearchParams()
+      if (statusFilter) params.set('status', statusFilter)
+      
+      const res = await fetch(`/api/orders?${params}`)
       if (res.ok) {
         const data = await res.json()
         setOrders(data)
@@ -42,7 +49,7 @@ export default function OrdersPage() {
     }
 
     fetchOrders()
-  }, [user])
+  }, [user, statusFilter])
 
   if (!user) {
     return (
@@ -66,10 +73,49 @@ export default function OrdersPage() {
     CANCELLED: 'bg-red-100 text-red-700',
   }
 
+  const statusOptions = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+
+  const getFilterUrl = (status: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (status) {
+      params.set('status', status)
+    } else {
+      params.delete('status')
+    }
+    return `/orders?${params.toString()}`
+  }
+
   return (
     <div className="py-8">
       <div className="container-custom">
-        <h1 className="text-2xl font-bold mb-8">My Orders</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold">My Orders</h1>
+          <div className="flex gap-2 flex-wrap">
+            <Link
+              href="/orders"
+              className={`px-3 py-1 rounded-full text-sm ${
+                !statusFilter
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              All
+            </Link>
+            {statusOptions.map((status) => (
+              <Link
+                key={status}
+                href={getFilterUrl(status)}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  statusFilter === status
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                {status}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {loading ? (
           <div className="space-y-4">
@@ -152,7 +198,9 @@ export default function OrdersPage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-slate-500 text-lg mb-6">No orders yet.</p>
+            <p className="text-slate-500 text-lg mb-6">
+              {statusFilter ? `No ${statusFilter.toLowerCase()} orders yet.` : 'No orders yet.'}
+            </p>
             <Link href="/products" className="btn-primary">
               Start Shopping
             </Link>
@@ -160,5 +208,27 @@ export default function OrdersPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-8">
+        <div className="container-custom">
+          <h1 className="text-2xl font-bold mb-8">My Orders</h1>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="card p-6 animate-pulse">
+                <div className="h-4 bg-slate-200 rounded w-1/4 mb-4" />
+                <div className="h-20 bg-slate-200 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <OrdersContent />
+    </Suspense>
   )
 }
