@@ -11,4 +11,4 @@ echo "Seeding database..."
 npx tsx prisma/seed.ts || echo "Seed failed or already seeded"
 
 echo "Starting application..."
-exec node server.js
+exec npm start
