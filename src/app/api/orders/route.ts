@@ -21,5 +21,18 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(orders)
+  return NextResponse.json(
+    orders.map(order => ({
+      ...order,
+      total: order.total.toNumber(),
+      items: order.items.map(item => ({
+        ...item,
+        price: item.price.toNumber(),
+        product: {
+          ...item.product,
+          price: item.product.price.toNumber(),
+        },
+      })),
+    }))
+  )
 }

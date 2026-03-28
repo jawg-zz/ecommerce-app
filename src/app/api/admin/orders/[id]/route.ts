@@ -40,7 +40,18 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(order)
+    return NextResponse.json({
+      ...order,
+      total: order.total.toNumber(),
+      items: order.items.map(item => ({
+        ...item,
+        price: item.price.toNumber(),
+        product: {
+          ...item.product,
+          price: item.product.price.toNumber(),
+        },
+      })),
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

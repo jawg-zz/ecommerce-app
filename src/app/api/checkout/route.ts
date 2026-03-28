@@ -122,7 +122,18 @@ export async function PUT(request: NextRequest) {
 
     await clearCart(user.id)
 
-    return NextResponse.json(order)
+    return NextResponse.json({
+      ...order,
+      total: order.total.toNumber(),
+      items: order.items.map(item => ({
+        ...item,
+        price: item.price.toNumber(),
+        product: {
+          ...item.product,
+          price: item.product.price.toNumber(),
+        },
+      })),
+    })
   } catch (error) {
     console.error('Complete checkout error:', error)
     return NextResponse.json(

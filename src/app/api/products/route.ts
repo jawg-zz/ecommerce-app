@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   ])
 
   return NextResponse.json({
-    products,
+    products: products.map(p => ({ ...p, price: p.price.toNumber() })),
     total,
     page,
     totalPages: Math.ceil(total / limit),
