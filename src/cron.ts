@@ -1,11 +1,14 @@
 import { cleanupStaleOrders } from './lib/cron/cleanup-stale-orders'
 import { redis } from './lib/redis'
+import { logger, logInfo, logError } from './lib/logger'
+import { registerShutdownHandlers } from './lib/shutdown'
+
+registerShutdownHandlers()
 
 const INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
 async function runCronJobs() {
-  console.log('Cron service started')
-  console.log(`Running cleanup every ${INTERVAL_MS / 1000 / 60} minutes`)
+  logInfo(`Cron service started. Running cleanup every ${INTERVAL_MS / 1000 / 60} minutes`)
 
   await runCleanupJob()
 
@@ -41,7 +44,7 @@ async function runCleanupJob() {
     await redis.lpush('cron:history:cleanup-stale-orders', JSON.stringify(historyEntry))
     await redis.ltrim('cron:history:cleanup-stale-orders', 0, 49)
 
-    console.log(`[Cron] ${jobName} completed: ${ordersCleaned} orders cleaned in ${duration}ms`)
+    logInfo(`[Cron] ${jobName} completed: ${ordersCleaned} orders cleaned in ${duration}ms`)
   } catch (error) {
     const duration = Date.now() - startTime
     const now = new Date().toISOString()
@@ -61,7 +64,7 @@ async function runCleanupJob() {
     await redis.lpush('cron:history:cleanup-stale-orders', JSON.stringify(historyEntry))
     await redis.ltrim('cron:history:cleanup-stale-orders', 0, 49)
 
-    console.error(`[Cron] ${jobName} failed:`, error)
+    logError(`[Cron] ${jobName} failed`, { error: String(error) })
   } finally {
     await redis.set(`cron:status:${jobName}`, 'idle')
   }

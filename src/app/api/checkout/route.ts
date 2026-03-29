@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getCart, clearCart } from '@/lib/cart'
 import { prisma } from '@/lib/prisma'
 import { initiateSTKPush, querySTKStatus } from '@/lib/mpesa'
+import { logError } from '@/lib/logger'
 
 const checkoutSchema = z.object({
   phoneNumber: z.string().regex(/^(254[17]\d{8}|0[17]\d{8})$/, 'Invalid phone number format (use 0712345678 or 254712345678)'),
@@ -35,7 +36,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
     }
 
-    // Check stock and reserve it atomically
+    // Stock reservation flow:
+    // 1. Transaction checks stock atomically (line 40-48) - acquires row lock on products
+    // 2. Pending order is created (line 51-66) - no actual stock decrement yet
+    // 3. Stock is decremented AFTER payment confirmation (GET handler lines 154-160)
+    // This prevents overselling while keeping pending orders reversible
     const order = await prisma.$transaction(async (tx) => {
       for (const item of cart.items) {
         const product = await tx.product.findUnique({
@@ -47,7 +52,6 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Create pending order with stock reserved
       return await tx.order.create({
         data: {
           userId: user.id,
@@ -91,7 +95,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('Checkout error:', error)
+    logError('Checkout error', { error: String(error) })
     const errorMessage = error instanceof Error ? error.message : 'Internal server error'
     
     // Check for M-Pesa specific error codes
@@ -174,7 +178,7 @@ export async function GET(request: NextRequest) {
       message: paymentStatus.resultDesc 
     })
   } catch (error) {
-    console.error('Payment status check error:', error)
+    logError('Payment status check error', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to check payment status' },
       { status: 500 }

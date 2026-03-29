@@ -1,14 +1,14 @@
 import { prisma } from '../prisma'
+import { logInfo, logError } from '../logger'
 
 const TIMEOUT_MINUTES = 15
 
 export async function cleanupStaleOrders(): Promise<number> {
   const cutoffTime = new Date(Date.now() - TIMEOUT_MINUTES * 60 * 1000)
 
-  console.log(`[${new Date().toISOString()}] Checking for stale orders older than ${TIMEOUT_MINUTES} minutes...`)
+  logInfo(`Checking for stale orders older than ${TIMEOUT_MINUTES} minutes`)
 
   try {
-    // Find stale pending orders
     const staleOrders = await prisma.order.findMany({
       where: {
         status: 'PENDING',
@@ -18,26 +18,25 @@ export async function cleanupStaleOrders(): Promise<number> {
     })
 
     if (staleOrders.length === 0) {
-      console.log('No stale orders found')
+      logInfo('No stale orders found')
       return 0
     }
 
-    console.log(`Found ${staleOrders.length} stale orders to cancel`)
+    logInfo(`Found ${staleOrders.length} stale orders to cancel`)
 
-    // Cancel each stale order
     for (const order of staleOrders) {
       await prisma.order.update({
         where: { id: order.id },
         data: { status: 'CANCELLED' },
       })
 
-      console.log(`Cancelled order ${order.id} (created at ${order.createdAt})`)
+      logInfo(`Cancelled order ${order.id}`, { createdAt: order.createdAt })
     }
 
-    console.log(`Successfully cleaned up ${staleOrders.length} stale orders`)
+    logInfo(`Successfully cleaned up ${staleOrders.length} stale orders`)
     return staleOrders.length
   } catch (error) {
-    console.error('Error cleaning up stale orders:', error)
+    logError('Error cleaning up stale orders', { error: String(error) })
     throw error
   }
 }

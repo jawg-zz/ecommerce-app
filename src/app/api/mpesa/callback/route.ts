@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { logInfo, logError } from '@/lib/logger'
 
 /**
  * M-Pesa callback endpoint
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       CallbackMetadata,
     } = stkCallback
 
-    console.log('M-Pesa callback received:', {
+    logInfo('M-Pesa callback received', {
       CheckoutRequestID,
       ResultCode,
       ResultDesc,
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!order) {
-      console.error('Order not found for CheckoutRequestID:', CheckoutRequestID)
+      logError('Order not found for CheckoutRequestID', { CheckoutRequestID })
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
     }
 
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
       // Validate payment amount matches order total
       if (amount && Number(order.total) !== Number(amount)) {
-        console.error('Payment amount mismatch:', {
+        logError('Payment amount mismatch', {
           orderId: order.id,
           expected: order.total,
           received: amount,
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      console.log('Payment successful:', {
+      logInfo('Payment successful', {
         orderId: order.id,
         amount,
         mpesaReceiptNumber,
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
         data: { status: 'CANCELLED' },
       })
 
-      console.log('Payment failed:', {
+      logInfo('Payment failed', {
         orderId: order.id,
         ResultCode,
         ResultDesc,
@@ -106,8 +107,7 @@ export async function POST(request: NextRequest) {
     // Always return success to M-Pesa
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   } catch (error) {
-    console.error('M-Pesa callback error:', error)
-    // Still return success to avoid retries
+    logError('M-Pesa callback error', { error: String(error) })
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   }
 }
