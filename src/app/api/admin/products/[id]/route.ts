@@ -8,7 +8,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive().optional(),
   category: z.enum(['ELECTRONICS', 'CLOTHING', 'BOOKS']).optional(),
-  image: z.string().url().optional(),
+  image: z.string().url().optional().or(z.literal('')).transform(val => val === '' ? null : val),
   stock: z.number().int().min(0).optional(),
 })
 
