@@ -16,12 +16,12 @@ const envSchema = z.object({
 }).refine(
   (data) => {
     if (data.MPESA_ENV === 'production') {
-      return !!data.MPESA_CONSUMER_KEY
+      return !!data.MPESA_CONSUMER_KEY && !!data.MPESA_CONSUMER_SECRET
     }
     return true
   },
   {
-    message: 'MPESA_CONSUMER_KEY is required when MPESA_ENV is production',
+    message: 'MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET are required when MPESA_ENV is production',
     path: ['MPESA_CONSUMER_KEY'],
   }
 )
