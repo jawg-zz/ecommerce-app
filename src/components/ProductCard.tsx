@@ -22,11 +22,12 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { setCart, refreshCart } = useApp()
+  const { setCart } = useApp()
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [added, setAdded] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -42,9 +43,7 @@ export function ProductCard({ product }: ProductCardProps) {
     try {
       const res = await fetch('/api/cart', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId: product.id, quantity: 1 }),
       })
 
@@ -75,10 +74,10 @@ export function ProductCard({ product }: ProductCardProps) {
     }
   }
 
-  const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
-    ELECTRONICS: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
-    CLOTHING: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
-    BOOKS: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+  const categoryColors: Record<string, { bg: string; text: string }> = {
+    ELECTRONICS: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    CLOTHING: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    BOOKS: { bg: 'bg-amber-100', text: 'text-amber-700' },
   }
 
   const colors = categoryColors[product.category] || categoryColors.ELECTRONICS
@@ -86,41 +85,39 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link 
       href={`/products/${product.id}`} 
-      className="card group block overflow-hidden"
+      className="card group block overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="aspect-square bg-slate-100 relative overflow-hidden">
+        {!imageLoaded && product.image && (
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 animate-shimmer" />
+        )}
+        
         {product.image ? (
           <img
             src={product.image}
             alt={product.name}
-            className={`w-full h-full object-cover transition-transform duration-500 ${
+            onLoad={() => setImageLoaded(true)}
+            className={`w-full h-full object-cover transition-all duration-500 ${
               isHovered ? 'scale-110' : 'scale-100'
-            }`}
+            } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300">
             <svg
-              xmlns="http://www.w3.org/2000/svg"
               className="h-20 w-20 transition-transform duration-300 group-hover:scale-110"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              strokeWidth={1}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
         )}
 
-        <span
-          className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${colors.bg} ${colors.text}`}
-        >
+        <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${colors.bg} ${colors.text} shadow-sm`}>
           {product.category}
         </span>
 
@@ -133,13 +130,13 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
 
         {product.stock > 0 && product.stock <= 5 && (
-          <span className="absolute bottom-3 left-3 bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full text-xs font-medium border border-orange-200">
-            Only {product.stock} left
+          <span className="absolute top-3 right-3 bg-orange-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg animate-pulse">
+            {product.stock} left
           </span>
         )}
 
         <div 
-          className={`absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent transition-all duration-300 ${
+          className={`absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/70 to-transparent transition-all duration-300 ${
             isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}
         >
@@ -149,7 +146,7 @@ export function ProductCard({ product }: ProductCardProps) {
             className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
               added
                 ? 'bg-green-500 text-white'
-                : 'bg-white text-slate-900 hover:bg-sky-50 active:scale-[0.98]'
+                : 'bg-white text-slate-900 hover:bg-sky-50 active:scale-95'
             } disabled:opacity-50 disabled:cursor-not-allowed shadow-lg`}
           >
             {loading ? (
@@ -171,31 +168,11 @@ export function ProductCard({ product }: ProductCardProps) {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                Quick Add
+                Add to Cart
               </>
             )}
           </button>
         </div>
-
-        {product.stock > 0 && (
-          <div className={`absolute top-3 right-3 transition-all duration-300 ${
-            isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
-          }`}>
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                handleAddToCart(e)
-              }}
-              className="p-2 bg-white rounded-full shadow-lg hover:bg-sky-50 transition-colors touch-target"
-              aria-label="Add to cart"
-            >
-              <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="p-4">
@@ -210,7 +187,7 @@ export function ProductCard({ product }: ProductCardProps) {
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           ))}
-          <span className="text-xs text-slate-400 ml-1">(12)</span>
+          <span className="text-xs text-slate-400 ml-1">(4.0)</span>
         </div>
 
         <h3 className="font-semibold text-slate-900 line-clamp-2 mb-2 min-h-[2.5rem] group-hover:text-sky-600 transition-colors">
@@ -222,9 +199,10 @@ export function ProductCard({ product }: ProductCardProps) {
             {formatPrice(product.price)}
           </p>
           
-          {product.stock > 0 && product.stock <= 5 && (
-            <span className="text-xs text-orange-600 font-medium">
-              Low Stock
+          {product.stock > 5 && (
+            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+              In Stock
             </span>
           )}
         </div>
