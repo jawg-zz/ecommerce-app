@@ -5,6 +5,7 @@ const PROTECTED_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH']
 const CSRF_EXEMPT_PATHS = [
   '/api/auth/login',
   '/api/auth/register',
+  '/api/csrf', // Allow fetching CSRF tokens
   '/api/mpesa/callback', // M-Pesa callbacks don't have CSRF tokens
 ]
 

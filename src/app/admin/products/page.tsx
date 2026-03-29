@@ -6,6 +6,7 @@ import { useToast } from '@/components/Toast'
 import { validatePrice, validateStock, isNetworkError } from '@/lib/validation'
 import { Modal, ConfirmModal } from '@/components/admin/Modal'
 import { StatusBadge } from '@/components/admin/StatusBadge'
+import { useCsrf, getCsrfHeaders } from '@/components/CsrfProvider'
 import {
   Search,
   Filter,
@@ -57,6 +58,7 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const { showToast } = useToast()
+  const { token: csrfToken } = useCsrf()
 
   const [filters, setFilters] = useState<Filters>({
     search: '',
@@ -251,7 +253,10 @@ export default function AdminProductsPage() {
     try {
       const res = await fetch(url, {
         method: editingProduct ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCsrfHeaders(csrfToken),
+        },
         body: JSON.stringify(payload),
       })
 
@@ -300,7 +305,10 @@ export default function AdminProductsPage() {
     if (!productToDelete) return
 
     try {
-      const res = await fetch(`/api/admin/products/${productToDelete}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/products/${productToDelete}`, {
+        method: 'DELETE',
+        headers: getCsrfHeaders(csrfToken),
+      })
 
       if (!res.ok) {
         const data = await res.json()
@@ -325,7 +333,10 @@ export default function AdminProductsPage() {
     try {
       await Promise.all(
         selectedProducts.map((id) =>
-          fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+          fetch(`/api/admin/products/${id}`, {
+            method: 'DELETE',
+            headers: getCsrfHeaders(csrfToken),
+          })
         )
       )
       showToast(`${selectedProducts.length} products deleted successfully`, 'success')
