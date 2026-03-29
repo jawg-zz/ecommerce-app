@@ -169,8 +169,10 @@ export default function CartPage() {
   const handleRemove = async (productId: string) => {
     setUpdatingItem(productId)
     try {
-      const res = await fetch(`/api/cart?productId=${productId}`, {
-        method: 'DELETE',
+      const res = await fetch('/api/cart', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity: 0 }),
       })
 
       const data = await res.json()
