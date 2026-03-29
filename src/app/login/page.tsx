@@ -13,6 +13,96 @@ interface FormErrors {
   password?: string
 }
 
+function FloatingInput({
+  label,
+  name,
+  type,
+  value,
+  onChange,
+  onBlur,
+  error,
+  touched,
+  placeholder,
+  autoComplete,
+}: {
+  label: string
+  name: string
+  type: string
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onBlur: (e: React.FocusEvent<HTMLInputElement>) => void
+  error?: string
+  touched?: boolean
+  placeholder?: string
+  autoComplete?: string
+}) {
+  const [focused, setFocused] = useState(false)
+  const hasValue = value.length > 0
+  const showFloating = focused || hasValue
+  const hasError = touched && error
+
+  return (
+    <div className="relative">
+      <div className={`relative transition-all duration-200 ${
+        hasError 
+          ? 'border-red-400 focus-within:ring-2 focus-within:ring-red-500/20' 
+          : value && !error
+            ? 'border-green-400 focus-within:ring-2 focus-within:ring-green-500/20'
+            : 'border-slate-200 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20'
+      }`}>
+        <input
+          type={type}
+          name={name}
+          id={name}
+          value={value}
+          onChange={onChange}
+          onBlur={(e) => {
+            onBlur(e)
+            setFocused(false)
+          }}
+          onFocus={() => setFocused(true)}
+          autoComplete={autoComplete}
+          className={`peer w-full px-4 pt-6 pb-2 bg-transparent border rounded-xl outline-none transition-all duration-200 ${
+            hasError 
+              ? 'border-red-400 text-red-900' 
+              : value && !error
+                ? 'border-green-400 text-green-900'
+                : 'text-slate-900'
+          }`}
+          placeholder=" "
+        />
+        <label
+          htmlFor={name}
+          className={`absolute left-4 transition-all duration-200 pointer-events-none ${
+            showFloating
+              ? 'top-2 text-xs font-medium'
+              : 'top-1/2 -translate-y-1/2 text-base text-slate-500'
+          } ${hasError ? 'text-red-500' : focused ? 'text-sky-600' : ''}`}
+        >
+          {label}
+          <span className="text-red-500 ml-0.5">*</span>
+        </label>
+        
+        {value && !error && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          </div>
+        )}
+      </div>
+      {hasError && (
+        <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1 animate-slide-down">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -82,14 +172,6 @@ function LoginForm() {
     
     setErrors((prev) => ({ ...prev, [field]: error }))
     return !error
-  }
-
-  const isFormValid = () => {
-    const nameValid = isLogin ? true : validateField('name', formData.name)
-    const emailValid = validateField('email', formData.email)
-    const passwordValid = validateField('password', formData.password)
-    
-    return nameValid && emailValid && passwordValid
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -163,126 +245,147 @@ function LoginForm() {
     }
   }
 
+  const getPasswordStrengthColor = () => {
+    if (!passwordStrength) return ''
+    if (passwordStrength.label === 'Very Weak' || passwordStrength.label === 'Weak') return 'bg-red-500'
+    if (passwordStrength.label === 'Fair') return 'bg-yellow-500'
+    return 'bg-green-500'
+  }
+
   return (
     <div className="py-12">
       <div className="container-custom">
         <div className="max-w-md mx-auto">
           <div className="card p-8">
-            <h1 className="text-2xl font-bold text-center mb-8">
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </h1>
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                {isLogin ? 'Welcome Back' : 'Create Account'}
+              </h1>
+              <p className="text-slate-500 mt-1">
+                {isLogin ? 'Sign in to continue shopping' : 'Join us and start shopping'}
+              </p>
+            </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-                {error}
+              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm flex items-start gap-2 animate-scale-in">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {!isLogin && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`input-field ${touched.name && errors.name ? 'border-red-500' : ''}`}
-                    placeholder="John Doe"
-                  />
-                  {touched.name && errors.name && (
-                    <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                  )}
-                </div>
+                <FloatingInput
+                  label="Full Name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={errors.name}
+                  touched={touched.name}
+                  autoComplete="name"
+                />
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input-field ${touched.email && errors.email ? 'border-red-500' : ''}`}
-                  placeholder="you@example.com"
-                />
-                {touched.email && errors.email && (
-                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                )}
-              </div>
+              <FloatingInput
+                label="Email Address"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={errors.email}
+                touched={touched.email}
+                autoComplete="email"
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input-field ${touched.password && errors.password ? 'border-red-500' : ''}`}
-                  placeholder="••••••••"
-                />
-                {touched.password && errors.password && (
-                  <p className="text-red-500 text-xs mt-1">{errors.password}</p>
-                )}
+              <FloatingInput
+                label="Password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={errors.password}
+                touched={touched.password}
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
+              />
                 
-                {!isLogin && formData.password && passwordStrength && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-500">Password strength:</span>
-                      <span className={`
-                        ${passwordStrength.label === 'Very Weak' || passwordStrength.label === 'Weak' ? 'text-red-500' : ''}
-                        ${passwordStrength.label === 'Fair' ? 'text-yellow-500' : ''}
-                        ${passwordStrength.label === 'Good' || passwordStrength.label === 'Strong' ? 'text-green-500' : ''}
-                      `}>
-                        {passwordStrength.label}
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-                        style={{ width: `${passwordStrength.percentage}%` }}
-                      />
-                    </div>
-                    <ul className="mt-2 text-xs text-slate-500 space-y-1">
-                      {formData.password.length >= 8 && <li className="text-green-600">✓ At least 8 characters</li>}
-                      {formData.password.length < 8 && <li>• At least 8 characters</li>}
-                      {/[A-Z]/.test(formData.password) && <li className="text-green-600">✓ Contains uppercase letter</li>}
-                      {!/[A-Z]/.test(formData.password) && <li>• Contains uppercase letter</li>}
-                      {/[a-z]/.test(formData.password) && <li className="text-green-600">✓ Contains lowercase letter</li>}
-                      {!/[a-z]/.test(formData.password) && <li>• Contains lowercase letter</li>}
-                      {/[0-9]/.test(formData.password) && <li className="text-green-600">✓ Contains number</li>}
-                      {!/[0-9]/.test(formData.password) && <li>• Contains number</li>}
-                    </ul>
+              {!isLogin && formData.password && passwordStrength && (
+                <div className="mt-2 animate-fade-in">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-slate-500">Password strength:</span>
+                    <span className={`
+                      ${passwordStrength.label === 'Very Weak' || passwordStrength.label === 'Weak' ? 'text-red-500' : ''}
+                      ${passwordStrength.label === 'Fair' ? 'text-yellow-500' : ''}
+                      ${passwordStrength.label === 'Good' || passwordStrength.label === 'Strong' ? 'text-green-500' : ''}
+                      font-medium
+                    `}>
+                      {passwordStrength.label}
+                    </span>
                   </div>
-                )}
-              </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${getPasswordStrengthColor()}`}
+                      style={{ width: `${passwordStrength.percentage}%` }}
+                    />
+                  </div>
+                  <ul className="mt-3 text-xs text-slate-500 space-y-1.5">
+                    <li className={formData.password.length >= 8 ? 'text-green-600' : ''}>
+                      {formData.password.length >= 8 ? '✓' : '•'} At least 8 characters
+                    </li>
+                    <li className={/[A-Z]/.test(formData.password) ? 'text-green-600' : ''}>
+                      {/[A-Z]/.test(formData.password) ? '✓' : '•'} Contains uppercase letter
+                    </li>
+                    <li className={/[a-z]/.test(formData.password) ? 'text-green-600' : ''}>
+                      {/[a-z]/.test(formData.password) ? '✓' : '•'} Contains lowercase letter
+                    </li>
+                    <li className={/[0-9]/.test(formData.password) ? 'text-green-600' : ''}>
+                      {/[0-9]/.test(formData.password) ? '✓' : '•'} Contains number
+                    </li>
+                  </ul>
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full btn-primary py-3.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Please wait...
                   </>
                 ) : (
-                  isLogin ? 'Sign In' : 'Create Account'
+                  <>
+                    {isLogin ? 'Sign In' : 'Create Account'}
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </>
                 )}
               </button>
             </form>
 
-            <p className="text-center mt-6 text-slate-600">
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-slate-500">or</span>
+              </div>
+            </div>
+
+            <p className="text-center text-slate-600">
               {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <button
                 onClick={() => {
@@ -291,11 +394,20 @@ function LoginForm() {
                   setErrors({})
                   setTouched({})
                 }}
-                className="text-blue-500 hover:text-blue-600 font-medium"
+                className="text-sky-600 hover:text-sky-700 font-semibold transition-colors"
               >
                 {isLogin ? 'Sign Up' : 'Sign In'}
               </button>
             </p>
+          </div>
+
+          <div className="mt-6 text-center">
+            <Link href="/" className="text-sm text-slate-500 hover:text-sky-600 transition-colors inline-flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to home
+            </Link>
           </div>
         </div>
       </div>
@@ -312,8 +424,9 @@ export default function LoginPage() {
             <div className="card p-8 animate-pulse">
               <div className="h-8 bg-slate-200 rounded w-1/2 mx-auto mb-8" />
               <div className="space-y-4">
-                <div className="h-10 bg-slate-200 rounded" />
-                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-14 bg-slate-200 rounded" />
+                <div className="h-14 bg-slate-200 rounded" />
+                <div className="h-14 bg-slate-200 rounded" />
                 <div className="h-12 bg-slate-200 rounded" />
               </div>
             </div>

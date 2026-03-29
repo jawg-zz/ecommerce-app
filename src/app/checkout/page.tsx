@@ -59,10 +59,35 @@ function getEstimatedDelivery(): string {
 }
 
 function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
-  const steps: { key: CheckoutStep; label: string }[] = [
-    { key: 'shipping', label: 'Shipping' },
-    { key: 'payment', label: 'Payment' },
-    { key: 'confirmation', label: 'Confirmation' },
+  const steps: { key: CheckoutStep; label: string; icon: JSX.Element }[] = [
+    { 
+      key: 'shipping', 
+      label: 'Shipping',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    },
+    { 
+      key: 'payment', 
+      label: 'Payment',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      )
+    },
+    { 
+      key: 'confirmation', 
+      label: 'Confirmation',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
   ]
 
   const getStepStatus = (stepKey: CheckoutStep) => {
@@ -74,43 +99,61 @@ function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
   }
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center justify-center">
+    <div className="mb-10">
+      <div className="flex items-center justify-center max-w-lg mx-auto">
         {steps.map((step, index) => {
           const status = getStepStatus(step.key)
+          const isLast = index === steps.length - 1
+          
           return (
-            <div key={step.key} className="flex items-center">
-              <div className="flex flex-col items-center">
+            <div key={step.key} className="flex items-center flex-1">
+              <div className="flex flex-col items-center relative">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-semibold transition-all duration-300 shadow-md ${
                     status === 'completed'
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-gradient-to-br from-green-400 to-green-500 text-white scale-100'
                       : status === 'current'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-200 text-slate-500'
+                      ? 'bg-gradient-to-br from-sky-400 to-sky-500 text-white scale-110 shadow-lg'
+                      : 'bg-slate-100 text-slate-400'
                   }`}
                 >
                   {status === 'completed' ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg className="w-6 h-6 animate-checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
+                  ) : status === 'current' ? (
+                    <div className="relative">
+                      {step.icon}
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full">
+                        <span className="absolute inset-0 rounded-full bg-sky-400 animate-ping opacity-75"></span>
+                      </span>
+                    </div>
                   ) : (
-                    index + 1
+                    step.icon
                   )}
                 </div>
-                <span className={`text-xs mt-1 ${status === 'current' ? 'text-blue-600 font-medium' : 'text-slate-500'}`}>
+                <span className={`absolute -bottom-6 text-xs font-medium whitespace-nowrap ${
+                  status === 'current' 
+                    ? 'text-sky-600' 
+                    : status === 'completed'
+                      ? 'text-green-600'
+                      : 'text-slate-400'
+                }`}>
                   {step.label}
                 </span>
               </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`w-16 sm:w-24 h-0.5 mx-2 ${
-                    getStepStatus(steps[index + 1].key) === 'completed' ||
-                    getStepStatus(steps[index + 1].key) === 'current'
-                      ? 'bg-green-500'
-                      : 'bg-slate-200'
-                  }`}
-                />
+              
+              {!isLast && (
+                <div className="flex-1 h-0.5 mx-3 relative overflow-hidden rounded-full">
+                  <div
+                    className={`absolute inset-y-0 left-0 transition-all duration-500 ${
+                      getStepStatus(steps[index + 1].key) === 'completed' ||
+                      getStepStatus(steps[index + 1].key) === 'current'
+                        ? 'w-full bg-gradient-to-r from-green-400 to-green-500'
+                        : 'w-0 bg-slate-200'
+                    }`}
+                  />
+                </div>
               )}
             </div>
           )
