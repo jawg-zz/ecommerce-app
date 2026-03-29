@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Clock,
 } from 'lucide-react'
 import { useApp } from '@/components/Providers'
 
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/admin/products', label: 'Products', icon: Package },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/admin/cron', label: 'Cron Jobs', icon: Clock },
 ]
 
 export function Sidebar({ isOpen, onToggle, isCollapsed, onCollapse }: SidebarProps) {
