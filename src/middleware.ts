@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyCsrfToken, getCsrfTokenFromRequest } from '@/lib/csrf'
 
+export const runtime = 'nodejs'
+
 const PROTECTED_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH']
 const CSRF_EXEMPT_PATHS = [
   '/api/auth/login',
