@@ -59,7 +59,7 @@ export async function setAuthCookie(token: string) {
   c.set('auth-token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   })
@@ -70,7 +70,7 @@ export async function removeAuthCookie() {
   c.set('auth-token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 0,
     path: '/',
     expires: new Date(0),

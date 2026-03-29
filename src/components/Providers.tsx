@@ -1,7 +1,6 @@
 'use client'
 
 import { ReactNode, createContext, useContext, useState, useEffect } from 'react'
-import { CsrfProvider } from './CsrfProvider'
 
 interface User {
   id: string
@@ -89,10 +88,8 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <CsrfProvider>
-      <AppContext.Provider value={{ user, cart, setUser, setCart, refreshCart }}>
-        {children}
-      </AppContext.Provider>
-    </CsrfProvider>
+    <AppContext.Provider value={{ user, cart, setUser, setCart, refreshCart }}>
+      {children}
+    </AppContext.Provider>
   )
 }

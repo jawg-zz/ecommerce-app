@@ -6,7 +6,6 @@ import { useApp } from './Providers'
 import { useToast } from './Toast'
 import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
-import { useCsrf, getCsrfHeaders } from './CsrfProvider'
 
 interface Product {
   id: string
@@ -25,7 +24,6 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { setCart, refreshCart } = useApp()
   const { showToast } = useToast()
-  const { token: csrfToken } = useCsrf()
   const [loading, setLoading] = useState(false)
   const [added, setAdded] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -39,15 +37,6 @@ export function ProductCard({ product }: ProductCardProps) {
       return
     }
 
-    if (!csrfToken) {
-      console.error('CSRF token not available yet')
-      showToast('Please wait, loading...', 'error')
-      return
-    }
-
-    console.log('CSRF token:', csrfToken)
-    console.log('Headers:', getCsrfHeaders(csrfToken))
-
     setLoading(true)
 
     try {
@@ -55,7 +44,6 @@ export function ProductCard({ product }: ProductCardProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getCsrfHeaders(csrfToken),
         },
         body: JSON.stringify({ productId: product.id, quantity: 1 }),
       })

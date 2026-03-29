@@ -6,7 +6,6 @@ import { useToast } from '@/components/Toast'
 import { validatePrice, validateStock, isNetworkError } from '@/lib/validation'
 import { Modal, ConfirmModal } from '@/components/admin/Modal'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { useCsrf, getCsrfHeaders } from '@/components/CsrfProvider'
 import {
   Search,
   Filter,
@@ -58,7 +57,6 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const { showToast } = useToast()
-  const { token: csrfToken } = useCsrf()
 
   const [filters, setFilters] = useState<Filters>({
     search: '',
@@ -255,7 +253,6 @@ export default function AdminProductsPage() {
         method: editingProduct ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getCsrfHeaders(csrfToken),
         },
         body: JSON.stringify(payload),
       })
@@ -307,7 +304,6 @@ export default function AdminProductsPage() {
     try {
       const res = await fetch(`/api/admin/products/${productToDelete}`, {
         method: 'DELETE',
-        headers: getCsrfHeaders(csrfToken),
       })
 
       if (!res.ok) {
@@ -335,7 +331,6 @@ export default function AdminProductsPage() {
         selectedProducts.map((id) =>
           fetch(`/api/admin/products/${id}`, {
             method: 'DELETE',
-            headers: getCsrfHeaders(csrfToken),
           })
         )
       )
