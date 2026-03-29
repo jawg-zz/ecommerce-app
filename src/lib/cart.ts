@@ -33,7 +33,17 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
     return { items: [], total: 0 }
   }
 
-  const items: CartItem[] = JSON.parse(cartData)
+  let items: CartItem[]
+  try {
+    const parsed = JSON.parse(cartData)
+    // Ensure items is always an array
+    items = Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    console.error('Failed to parse cart data:', error)
+    // Clear corrupted cart data
+    await redis.del(key)
+    return { items: [], total: 0 }
+  }
 
   if (items.length === 0) {
     return { items: [], total: 0 }
