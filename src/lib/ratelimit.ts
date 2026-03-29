@@ -10,12 +10,12 @@ interface RateLimitResult {
 
 class SimpleRateLimiter {
   private prefix: string
-  private limit: number
+  private maxRequests: number
   private windowMs: number
 
   constructor(prefix: string, limit: number, windowMs: number) {
     this.prefix = prefix
-    this.limit = limit
+    this.maxRequests = limit
     this.windowMs = windowMs
   }
 
@@ -31,14 +31,14 @@ class SimpleRateLimiter {
       // Count requests in current window
       const count = await redis.zcard(key)
 
-      if (count >= this.limit) {
+      if (count >= this.maxRequests) {
         // Get the oldest entry to calculate reset time
         const oldest = await redis.zrange(key, 0, 0, 'WITHSCORES')
         const resetTime = oldest.length > 1 ? parseInt(oldest[1]) + this.windowMs : now + this.windowMs
 
         return {
           success: false,
-          limit: this.limit,
+          limit: this.maxRequests,
           remaining: 0,
           reset: resetTime,
           pending: Promise.resolve(),
@@ -51,8 +51,8 @@ class SimpleRateLimiter {
 
       return {
         success: true,
-        limit: this.limit,
-        remaining: this.limit - count - 1,
+        limit: this.maxRequests,
+        remaining: this.maxRequests - count - 1,
         reset: now + this.windowMs,
         pending: Promise.resolve(),
       }
@@ -61,8 +61,8 @@ class SimpleRateLimiter {
       console.error('[RateLimit] Redis error:', error)
       return {
         success: true,
-        limit: this.limit,
-        remaining: this.limit,
+        limit: this.maxRequests,
+        remaining: this.maxRequests,
         reset: now + this.windowMs,
         pending: Promise.resolve(),
       }
