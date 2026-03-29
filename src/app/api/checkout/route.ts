@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Store checkoutRequestId in order for tracking
     await prisma.order.update({
       where: { id: order.id },
-      data: { stripePaymentId: checkoutRequestId }, // Reuse field for M-Pesa ID
+      data: { stripePaymentId: checkoutRequestId },
     })
 
     return NextResponse.json({

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Find order by CheckoutRequestID
     const order = await prisma.order.findFirst({
-      where: { mpesaCheckoutRequestId: CheckoutRequestID },
+      where: { stripePaymentId: CheckoutRequestID },
     })
 
     if (!order) {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         where: { id: order.id },
         data: {
           status: 'PAID',
-          mpesaCheckoutRequestId: CheckoutRequestID,
+          stripePaymentId: mpesaReceiptNumber || CheckoutRequestID,
         },
       })
 
