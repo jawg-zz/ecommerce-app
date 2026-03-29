@@ -11,6 +11,7 @@ import {
   isNetworkError,
 } from '@/lib/validation'
 import { KENYA_COUNTIES, ShippingAddress } from '@/types'
+import { useCsrf, getCsrfHeaders } from '@/components/CsrfProvider'
 
 type CheckoutStep = 'shipping' | 'payment' | 'confirmation'
 
@@ -191,6 +192,7 @@ function SecurityBadges() {
 function CheckoutPageContent() {
   const router = useRouter()
   const { user, cart, setCart, refreshCart } = useApp()
+  const { token: csrfToken } = useCsrf()
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('shipping')
@@ -409,7 +411,10 @@ function CheckoutPageContent() {
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCsrfHeaders(csrfToken),
+        },
         body: JSON.stringify({ shippingAddress: address, phoneNumber }),
       })
 
