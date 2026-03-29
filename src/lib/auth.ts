@@ -69,5 +69,12 @@ export async function setAuthCookie(token: string) {
 
 export async function removeAuthCookie() {
   const c = await cookies()
-  c.delete('auth-token')
+  c.set('auth-token', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 0,
+    path: '/',
+    expires: new Date(0),
+  })
 }

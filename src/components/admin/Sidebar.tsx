@@ -36,8 +36,15 @@ export function Sidebar({ isOpen, onToggle, isCollapsed, onCollapse }: SidebarPr
   const { user } = useApp()
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      if (res.ok) {
+        window.location.replace('/login')
+      }
+    } catch (error) {
+      console.error('Logout failed:', error)
+      window.location.replace('/login')
+    }
   }
 
   const isActive = (href: string, exact?: boolean) => {

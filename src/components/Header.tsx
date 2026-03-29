@@ -92,8 +92,17 @@ export function Header() {
   }, [searchQuery])
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    window.location.href = '/'
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      if (res.ok) {
+        // Force a hard reload to clear all client state
+        window.location.replace('/')
+      }
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Still redirect even if the request fails
+      window.location.replace('/')
+    }
   }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
