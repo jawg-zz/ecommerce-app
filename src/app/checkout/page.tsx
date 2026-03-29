@@ -431,6 +431,12 @@ function CheckoutPageContent() {
       setPaymentStage('waiting')
       setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
 
+      if (!data.checkoutRequestId || !data.orderId) {
+        setError('Invalid checkout response')
+        setProcessing(false)
+        return
+      }
+
       pollPaymentStatus(data.checkoutRequestId, data.orderId)
     } catch (err) {
       if (isNetworkError(err)) {

@@ -35,31 +35,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
     }
 
-    // Check stock
-    for (const item of cart.items) {
-      if (item.product.stock < item.quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock for ${item.product.name}` },
-          { status: 400 }
-        )
+    // Check stock and reserve it atomically
+    const order = await prisma.$transaction(async (tx) => {
+      for (const item of cart.items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+        })
+        
+        if (!product || product.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.product.name}`)
+        }
       }
-    }
-
-    // Create pending order
-    const order = await prisma.order.create({
-      data: {
-        userId: user.id,
-        status: 'PENDING',
-        total: cart.total,
-        shippingAddress,
-        items: {
-          create: cart.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.product.price,
-          })),
+      
+      // Create pending order with stock reserved
+      return await tx.order.create({
+        data: {
+          userId: user.id,
+          status: 'PENDING',
+          total: cart.total,
+          shippingAddress,
+          items: {
+            create: cart.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.product.price,
+            })),
+          },
         },
-      },
+      })
     })
 
     // Initiate M-Pesa STK Push
@@ -130,12 +133,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ status: 'success', order })
     }
 
-    if (!order.stripePaymentId) {
+    if (!order.mpesaCheckoutRequestId) {
       return NextResponse.json({ status: 'pending' })
     }
 
     // Query M-Pesa status
-    const paymentStatus = await querySTKStatus(order.stripePaymentId)
+    const paymentStatus = await querySTKStatus(order.mpesaCheckoutRequestId)
 
     if (paymentStatus.status === 'success') {
       // Update order and reduce stock

@@ -45,30 +45,43 @@ export async function POST(request: NextRequest) {
       const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
       const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
 
-      // Update order status
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'PAID',
-          mpesaCheckoutRequestId: CheckoutRequestID,
-          reference: mpesaReceiptNumber,
-        },
-      })
-
-      // Reduce stock
-      const orderWithItems = await prisma.order.findUnique({
-        where: { id: order.id },
-        include: { items: true },
-      })
-
-      if (orderWithItems) {
-        for (const item of orderWithItems.items) {
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          })
-        }
+      // Validate payment amount matches order total
+      if (amount && Number(order.total) !== Number(amount)) {
+        console.error('Payment amount mismatch:', {
+          orderId: order.id,
+          expected: order.total,
+          received: amount,
+        })
+        return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
       }
+
+      // Use transaction for atomic update and stock reduction
+      await prisma.$transaction(async (tx) => {
+        // Update order status
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'PAID',
+            mpesaCheckoutRequestId: CheckoutRequestID,
+            reference: mpesaReceiptNumber,
+          },
+        })
+
+        // Reduce stock atomically
+        const orderWithItems = await tx.order.findUnique({
+          where: { id: order.id },
+          include: { items: true },
+        })
+
+        if (orderWithItems) {
+          for (const item of orderWithItems.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            })
+          }
+        }
+      })
 
       console.log('Payment successful:', {
         orderId: order.id,

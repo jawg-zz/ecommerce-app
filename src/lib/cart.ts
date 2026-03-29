@@ -69,52 +69,103 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
   return { items: cartItems, total }
 }
 
+const ADD_TO_CART_SCRIPT = `
+local key = KEYS[1]
+local productId = ARGV[1]
+local quantity = tonumber(ARGV[2])
+
+local cartData = redis.call('GET', key)
+local items = {}
+
+if cartData then
+  items = cjson.decode(cartData)
+end
+
+local found = false
+for i, item in ipairs(items) do
+  if item.productId == productId then
+    item.quantity = item.quantity + quantity
+    found = true
+    break
+  end
+end
+
+if not found then
+  table.insert(items, {productId = productId, quantity = quantity})
+end
+
+redis.call('SET', key, cjson.encode(items))
+return 'OK'
+`
+
 export async function addToCart(userId: string, productId: string, quantity: number = 1): Promise<void> {
   const key = getCartKey(userId)
-  const cartData = await redis.get(key)
-
-  let items: CartItem[] = cartData ? JSON.parse(cartData) : []
-
-  const existingItem = items.find(item => item.productId === productId)
-  if (existingItem) {
-    existingItem.quantity += quantity
-  } else {
-    items.push({ productId, quantity })
-  }
-
-  await redis.set(key, JSON.stringify(items))
+  await redis.eval(ADD_TO_CART_SCRIPT, 1, key, productId, quantity)
 }
+
+const UPDATE_CART_ITEM_SCRIPT = `
+local key = KEYS[1]
+local productId = ARGV[1]
+local quantity = tonumber(ARGV[2])
+
+local cartData = redis.call('GET', key)
+if not cartData then
+  return 'NOT_FOUND'
+end
+
+local items = cjson.decode(cartData)
+
+if quantity <= 0 then
+  local newItems = {}
+  for i, item in ipairs(items) do
+    if item.productId ~= productId then
+      table.insert(newItems, item)
+    end
+  end
+  items = newItems
+else
+  for i, item in ipairs(items) do
+    if item.productId == productId then
+      item.quantity = quantity
+      break
+    end
+  end
+end
+
+redis.call('SET', key, cjson.encode(items))
+return 'OK'
+`
 
 export async function updateCartItem(userId: string, productId: string, quantity: number): Promise<void> {
   const key = getCartKey(userId)
-  const cartData = await redis.get(key)
-
-  if (!cartData) return
-
-  let items: CartItem[] = JSON.parse(cartData)
-
-  if (quantity <= 0) {
-    items = items.filter(item => item.productId !== productId)
-  } else {
-    const item = items.find(i => i.productId === productId)
-    if (item) {
-      item.quantity = quantity
-    }
-  }
-
-  await redis.set(key, JSON.stringify(items))
+  await redis.eval(UPDATE_CART_ITEM_SCRIPT, 1, key, productId, quantity)
 }
+
+const REMOVE_FROM_CART_SCRIPT = `
+local key = KEYS[1]
+local productId = ARGV[1]
+
+local cartData = redis.call('GET', key)
+if not cartData then
+  return 'NOT_FOUND'
+end
+
+local items = cjson.decode(cartData)
+local newItems = {}
+
+for i, item in ipairs(items) do
+  if item.productId ~= productId then
+    table.insert(newItems, item)
+  end
+end
+
+redis.call('SET', key, cjson.encode(newItems))
+return 'OK'
+`
 
 export async function removeFromCart(userId: string, productId: string): Promise<void> {
   const key = getCartKey(userId)
-  const cartData = await redis.get(key)
-
-  if (!cartData) return
-
-  let items: CartItem[] = JSON.parse(cartData)
-  items = items.filter(item => item.productId !== productId)
-
-  await redis.set(key, JSON.stringify(items))
+  await redis.eval(REMOVE_FROM_CART_SCRIPT, 1, key, productId)
 }
 
 export async function clearCart(userId: string): Promise<void> {
