@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { verifyPassword, createToken, setAuthCookie } from '@/lib/auth'
+import { authRateLimiter } from '@/lib/ratelimit'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -9,6 +10,16 @@ const loginSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown'
+  const { success } = await authRateLimiter.limit(ip)
+  
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    )
+  }
+
   try {
     const body = await request.json()
     const { email, password } = loginSchema.parse(body)
