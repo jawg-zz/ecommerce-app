@@ -108,13 +108,18 @@ export function Header({ onMenuClick }: HeaderProps) {
             )}
           </div>
 
-          <Link
-            href="/admin/products/new"
-            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Product
-          </Link>
+          {pathname === '/admin/products' && (
+            <button
+              onClick={() => {
+                const event = new CustomEvent('openProductForm')
+                window.dispatchEvent(event)
+              }}
+              className="hidden sm:flex items-center gap-2 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Product
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -90,6 +90,15 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts()
+
+    const handleOpenForm = () => {
+      setShowForm(true)
+      setTouched({})
+      setErrors({})
+    }
+
+    window.addEventListener('openProductForm', handleOpenForm)
+    return () => window.removeEventListener('openProductForm', handleOpenForm)
   }, [])
 
   useEffect(() => {
