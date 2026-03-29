@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyCsrfToken, getCsrfTokenFromRequest } from '@/lib/csrf'
 
 const PROTECTED_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH']
 const CSRF_EXEMPT_PATHS = [
   '/api/auth/login',
   '/api/auth/register',
-  '/api/csrf', // Allow fetching CSRF tokens
-  '/api/mpesa/callback', // M-Pesa callbacks don't have CSRF tokens
+  '/api/csrf',
+  '/api/mpesa/callback',
 ]
 
 export async function middleware(request: NextRequest) {
@@ -20,10 +19,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
     
-    const csrfToken = getCsrfTokenFromRequest(request)
-    const isValid = await verifyCsrfToken(csrfToken)
+    const csrfToken = request.headers.get('X-CSRF-Token')
+    const cookieToken = request.cookies.get('csrf-token')?.value
     
-    if (!isValid) {
+    if (!csrfToken || !cookieToken || csrfToken !== cookieToken) {
       return NextResponse.json(
         { error: 'Invalid or missing CSRF token' },
         { status: 403 }
@@ -36,5 +35,4 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: '/api/:path*',
-  runtime: 'nodejs',
 }
