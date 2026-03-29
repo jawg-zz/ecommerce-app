@@ -40,9 +40,13 @@ export function ProductCard({ product }: ProductCardProps) {
     }
 
     if (!csrfToken) {
+      console.error('CSRF token not available yet')
       showToast('Please wait, loading...', 'error')
       return
     }
+
+    console.log('CSRF token:', csrfToken)
+    console.log('Headers:', getCsrfHeaders(csrfToken))
 
     setLoading(true)
 
