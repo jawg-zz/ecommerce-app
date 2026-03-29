@@ -141,24 +141,26 @@ export async function GET(request: NextRequest) {
     const paymentStatus = await querySTKStatus(order.mpesaCheckoutRequestId)
 
     if (paymentStatus.status === 'success') {
-      // Update order and reduce stock
-      const updatedOrder = await prisma.order.update({
-        where: { id: orderId },
-        data: { status: 'PAID' },
-        include: {
-          items: {
-            include: { product: true },
+      // Update order and reduce stock atomically in transaction
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        const order = await tx.order.update({
+          where: { id: orderId },
+          data: { status: 'PAID' },
+          include: {
+            items: true,
           },
-        },
-      })
-
-      // Reduce stock
-      for (const item of updatedOrder.items) {
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
         })
-      }
+
+        // Reduce stock atomically
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          })
+        }
+
+        return order
+      })
 
       // Clear cart
       await clearCart(user.id)

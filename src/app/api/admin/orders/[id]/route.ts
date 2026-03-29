@@ -21,6 +21,15 @@ export async function PUT(
     const body = await request.json()
     const { status } = updateOrderSchema.parse(body)
 
+    // Verify order exists before update
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!existingOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
     const order = await prisma.order.update({
       where: { id: params.id },
       data: { status },

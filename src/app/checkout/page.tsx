@@ -501,6 +501,12 @@ function CheckoutPageContent() {
         return
       }
 
+      if (!orderId) {
+        clearInterval(timerInterval)
+        setError('Order ID missing')
+        return
+      }
+
       try {
         const res = await fetch(`/api/checkout?orderId=${orderId}`)
         const data = await res.json()
