@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useApp } from '@/components/Providers'
 import { ProductCard } from '@/components/ProductCard'
 import { formatPrice } from '@/lib/utils'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 interface Product {
   id: string
@@ -320,7 +321,10 @@ export default function ProductDetailPage() {
             {product.description && (
               <div className="mb-8">
                 <h2 className="font-semibold text-slate-900 mb-2">Description</h2>
-                <p className="text-slate-600 leading-relaxed">{product.description}</p>
+                <div 
+                  className="text-slate-600 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }}
+                />
               </div>
             )}
 

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
     console.error('Add to cart error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to add item to cart. Please try again.' },
       { status: 500 }
     )
   }
@@ -78,7 +78,7 @@ export async function PUT(request: NextRequest) {
     }
     console.error('Update cart error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to update cart. Please try again.' },
       { status: 500 }
     )
   }

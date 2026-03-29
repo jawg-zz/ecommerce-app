@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
     console.error('Create product error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to create product. Please try again.' },
       { status: 500 }
     )
   }

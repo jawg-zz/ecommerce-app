@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
     console.error('Register error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Registration failed. Please try again.' },
       { status: 500 }
     )
   }

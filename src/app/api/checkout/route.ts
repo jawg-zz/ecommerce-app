@@ -96,14 +96,10 @@ export async function POST(request: NextRequest) {
       )
     }
     logError('Checkout error', { error: String(error) })
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
     
-    // Check for M-Pesa specific error codes
-    const mpesaErrorMatch = errorMessage.match(/M-Pesa.*?:\s*(\d+)/)
-    const errorCode = mpesaErrorMatch ? mpesaErrorMatch[1] : undefined
-    
+    // Don't expose internal error details to users
     return NextResponse.json(
-      { error: errorMessage, errorCode },
+      { error: 'Payment initiation failed. Please try again.' },
       { status: 500 }
     )
   }
@@ -174,8 +170,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ 
       status: paymentStatus.status,
-      errorCode: paymentStatus.resultCode,
-      message: paymentStatus.resultDesc 
+      message: paymentStatus.status === 'failed' ? 'Payment failed. Please try again.' : 'Payment pending'
     })
   } catch (error) {
     logError('Payment status check error', { error: String(error) })
