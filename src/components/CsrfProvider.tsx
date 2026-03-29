@@ -32,11 +32,6 @@ export function CsrfProvider({ children }: { children: ReactNode }) {
     refreshToken()
   }, [])
 
-  // Don't render children until token is loaded to avoid hydration mismatch
-  if (isLoading) {
-    return <>{children}</>
-  }
-
   return (
     <CsrfContext.Provider value={{ token, refreshToken }}>
       {children}
