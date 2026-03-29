@@ -14,6 +14,7 @@ const CsrfContext = createContext<CsrfContextType>({
 
 export function CsrfProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const refreshToken = async () => {
     try {
@@ -22,12 +23,19 @@ export function CsrfProvider({ children }: { children: ReactNode }) {
       setToken(data.token)
     } catch (error) {
       console.error('Failed to fetch CSRF token:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   useEffect(() => {
     refreshToken()
   }, [])
+
+  // Don't render children until token is loaded to avoid hydration mismatch
+  if (isLoading) {
+    return <>{children}</>
+  }
 
   return (
     <CsrfContext.Provider value={{ token, refreshToken }}>
