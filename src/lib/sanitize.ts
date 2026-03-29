@@ -1,15 +1,18 @@
-import DOMPurify from 'dompurify'
-import { JSDOM } from 'jsdom'
+'use client'
 
-// Create a DOMPurify instance for server-side use
-const window = new JSDOM('').window
-const purify = DOMPurify(window as unknown as Window)
+import DOMPurify from 'dompurify'
 
 /**
  * Sanitize HTML content to prevent XSS attacks
+ * Note: This must be used in client components only
  */
 export function sanitizeHtml(dirty: string): string {
-  return purify.sanitize(dirty, {
+  if (typeof window === 'undefined') {
+    // Server-side: strip all HTML tags as a fallback
+    return dirty.replace(/<[^>]*>/g, '')
+  }
+  
+  return DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOW_DATA_ATTR: false,
@@ -20,7 +23,11 @@ export function sanitizeHtml(dirty: string): string {
  * Sanitize plain text (strip all HTML)
  */
 export function sanitizeText(dirty: string): string {
-  return purify.sanitize(dirty, {
+  if (typeof window === 'undefined') {
+    return dirty.replace(/<[^>]*>/g, '')
+  }
+  
+  return DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: [],
     ALLOWED_ATTR: [],
   })
