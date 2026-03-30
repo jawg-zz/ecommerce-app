@@ -16,6 +16,7 @@ services:
       - MPESA_SHORTCODE=${MPESA_SHORTCODE}
       - MPESA_PASSKEY=${MPESA_PASSKEY}
       - MPESA_CALLBACK_URL=${MPESA_CALLBACK_URL}
+      - MPESA_IP_WHITELIST=${MPESA_IP_WHITELIST:-true}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://ecommerce.spidmax.win}
     depends_on:
       postgres:
