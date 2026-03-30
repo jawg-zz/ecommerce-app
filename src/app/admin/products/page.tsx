@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { formatPrice } from '@/lib/utils'
-import { useToast } from '@/components/Toast'
+import { toast } from 'react-hot-toast'
 import { validatePrice, validateStock, isNetworkError } from '@/lib/validation'
 import { Modal, ConfirmModal } from '@/components/admin/Modal'
 import { StatusBadge } from '@/components/admin/StatusBadge'
@@ -56,7 +56,6 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
-  const { showToast } = useToast()
 
   const [filters, setFilters] = useState<Filters>({
     search: '',
@@ -154,7 +153,7 @@ export default function AdminProductsPage() {
       const data = await res.json()
       setProducts(data.products || [])
     } catch {
-      showToast('Failed to load products', 'error')
+      toast.success('Failed to load products')
     } finally {
       setLoading(false)
     }
@@ -269,18 +268,18 @@ export default function AdminProductsPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        showToast(data.error || 'Failed to save product', 'error')
+        toast.success(data.error || 'Failed to save product')
         return
       }
 
-      showToast(editingProduct ? 'Product updated successfully' : 'Product created successfully', 'success')
+      toast.success(editingProduct ? 'Product updated successfully' : 'Product created successfully')
       fetchProducts()
       resetForm()
     } catch (err) {
       if (isNetworkError(err)) {
-        showToast('Unable to connect. Please check your connection.', 'error')
+        toast.success('Unable to connect. Please check your connection.')
       } else {
-        showToast('Failed to save product. Please try again.', 'error')
+        toast.success('Failed to save product. Please try again.')
       }
     } finally {
       setSaving(false)
@@ -317,14 +316,14 @@ export default function AdminProductsPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        showToast(data.error || 'Failed to delete product', 'error')
+        toast.success(data.error || 'Failed to delete product')
         return
       }
 
-      showToast('Product deleted successfully', 'success')
+      toast.success('Product deleted successfully')
       fetchProducts()
     } catch {
-      showToast('Failed to delete product. Please try again.', 'error')
+      toast.success('Failed to delete product. Please try again.')
     } finally {
       setShowDeleteModal(false)
       setProductToDelete(null)
@@ -343,11 +342,11 @@ export default function AdminProductsPage() {
           })
         )
       )
-      showToast(`${selectedProducts.length} products deleted successfully`, 'success')
+      toast.success(`${selectedProducts.length} products deleted successfully`)
       setSelectedProducts([])
       fetchProducts()
     } catch {
-      showToast('Failed to delete products', 'error')
+      toast.success('Failed to delete products')
     } finally {
       setSaving(false)
     }

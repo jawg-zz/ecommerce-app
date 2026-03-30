@@ -1,0 +1,172 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.mpesaErrorMessages = void 0;
+exports.validateEmail = validateEmail;
+exports.validatePassword = validatePassword;
+exports.getPasswordStrength = getPasswordStrength;
+exports.validatePhone = validatePhone;
+exports.validatePhoneForDisplay = validatePhoneForDisplay;
+exports.validateRequired = validateRequired;
+exports.validateNumber = validateNumber;
+exports.validatePrice = validatePrice;
+exports.validateStock = validateStock;
+exports.isNetworkError = isNetworkError;
+exports.getMpesaErrorMessage = getMpesaErrorMessage;
+function validateEmail(email) {
+    if (!email) {
+        return { isValid: false, error: 'Email is required' };
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return { isValid: false, error: 'Please enter a valid email address' };
+    }
+    return { isValid: true };
+}
+function validatePassword(password) {
+    if (!password) {
+        return { isValid: false, error: 'Password is required' };
+    }
+    if (password.length < 8) {
+        return { isValid: false, error: 'Password must be at least 8 characters', strength: 'weak' };
+    }
+    let strength = 'weak';
+    let score = 0;
+    if (password.length >= 12)
+        score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password))
+        score++;
+    if (/\d/.test(password))
+        score++;
+    if (/[^a-zA-Z0-9]/.test(password))
+        score++;
+    if (score >= 3)
+        strength = 'strong';
+    else if (score >= 2)
+        strength = 'medium';
+    return { isValid: true, strength };
+}
+function getPasswordStrength(password) {
+    let score = 0;
+    if (password.length >= 8)
+        score++;
+    if (password.length >= 12)
+        score++;
+    if (/[A-Z]/.test(password))
+        score++;
+    if (/[a-z]/.test(password))
+        score++;
+    if (/[0-9]/.test(password))
+        score++;
+    if (/[^A-Za-z0-9]/.test(password))
+        score++;
+    const percentage = Math.min(100, (score / 6) * 100);
+    let label = 'Very Weak';
+    let color = 'bg-red-500';
+    if (score <= 1) {
+        label = 'Very Weak';
+        color = 'bg-red-500';
+    }
+    else if (score <= 2) {
+        label = 'Weak';
+        color = 'bg-red-400';
+    }
+    else if (score <= 3) {
+        label = 'Fair';
+        color = 'bg-yellow-500';
+    }
+    else if (score <= 4) {
+        label = 'Good';
+        color = 'bg-green-400';
+    }
+    else {
+        label = 'Strong';
+        color = 'bg-green-500';
+    }
+    return { score, percentage, label, color };
+}
+function validatePhone(phone) {
+    if (!phone) {
+        return { isValid: false, error: 'Phone number is required' };
+    }
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0') && cleaned.length === 10) {
+        return { isValid: true };
+    }
+    if (cleaned.startsWith('254') && cleaned.length === 12) {
+        return { isValid: true };
+    }
+    if ((cleaned.startsWith('7') || cleaned.startsWith('1')) && cleaned.length === 9) {
+        return { isValid: true };
+    }
+    return { isValid: false, error: 'Please enter a valid Kenyan phone number (e.g., 0712345678 or 254712345678)' };
+}
+function validatePhoneForDisplay(phone) {
+    if (!phone)
+        return false;
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0') && cleaned.length === 10)
+        return true;
+    if (cleaned.startsWith('254') && cleaned.length === 12)
+        return true;
+    if ((cleaned.startsWith('7') || cleaned.startsWith('1')) && cleaned.length === 9)
+        return true;
+    return false;
+}
+function validateRequired(value, fieldName) {
+    if (!value || value.trim() === '') {
+        return { isValid: false, error: `${fieldName} is required` };
+    }
+    return { isValid: true };
+}
+function validateNumber(value, min, max) {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) {
+        return { isValid: false, error: 'Must be a valid number' };
+    }
+    if (min !== undefined && num < min) {
+        return { isValid: false, error: `Must be at least ${min}` };
+    }
+    if (max !== undefined && num > max) {
+        return { isValid: false, error: `Must be at most ${max}` };
+    }
+    return { isValid: true };
+}
+function validatePrice(price) {
+    const result = validateNumber(price, 0.01);
+    if (!result.isValid) {
+        return { isValid: false, error: 'Price must be greater than 0' };
+    }
+    return { isValid: true };
+}
+function validateStock(stock) {
+    const result = validateNumber(stock, 0);
+    if (!result.isValid) {
+        return { isValid: false, error: 'Stock must be 0 or greater' };
+    }
+    const num = typeof stock === 'string' ? parseFloat(stock) : stock;
+    if (!Number.isInteger(num)) {
+        return { isValid: false, error: 'Stock must be a whole number' };
+    }
+    return { isValid: true };
+}
+function isNetworkError(error) {
+    return (error instanceof TypeError &&
+        error.message.includes('Failed to fetch'));
+}
+exports.mpesaErrorMessages = {
+    'INS': 'Insufficient funds. Please check your M-Pesa balance and try again.',
+    'PB': 'Your payment request has been rejected. Please try again.',
+    'MF': 'M-Pesa service is temporarily unavailable. Please try again later.',
+    'RT': 'The transaction was rejected. Please contact M-Pesa or try again.',
+    'DC': 'Your account is not enabled for M-Pesa. Please register for M-Pesa.',
+    'BC': 'Business not registered. Please contact customer care.',
+    'LO': 'Transaction limit exceeded. Please try with a smaller amount.',
+    'WL': 'Too many requests. Please wait and try again.',
+    'WS': 'Service not available. Please try again later.',
+    'CM': 'Invalid phone number format. Please check and try again.',
+    'TIMEOUT': 'The request timed out. Please try again.',
+    'CANCEL': 'Payment was cancelled.',
+};
+function getMpesaErrorMessage(errorCode) {
+    return exports.mpesaErrorMessages[errorCode] || 'Payment failed. Please try again or contact support.';
+}

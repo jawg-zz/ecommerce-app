@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
-import { useToast } from '@/components/Toast'
+import { toast } from 'react-hot-toast'
 import { isNetworkError } from '@/lib/validation'
 import { Modal, ConfirmModal } from '@/components/admin/Modal'
 import { StatusBadge } from '@/components/admin/StatusBadge'
@@ -81,7 +81,6 @@ const statusColors: Record<string, string> = {
 function AdminOrdersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { showToast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,13 +129,13 @@ function AdminOrdersContent() {
       const data = await res.json()
 
       if (!res.ok) {
-        showToast(data.error || 'Failed to load orders', 'error')
+        toast.success(data.error || 'Failed to load orders')
         return
       }
 
       setOrders(data.orders || [])
     } catch {
-      showToast('Failed to load orders. Please check your connection.', 'error')
+      toast.success('Failed to load orders. Please check your connection.')
     } finally {
       setLoading(false)
     }
@@ -154,15 +153,15 @@ function AdminOrdersContent() {
       const data = await res.json()
 
       if (!res.ok) {
-        showToast(data.error || 'Failed to update order status', 'error')
+        toast.success(data.error || 'Failed to update order status')
         setUpdating(null)
         return
       }
 
-      showToast('Order status updated successfully', 'success')
+      toast.success('Order status updated successfully')
       fetchOrders()
     } catch {
-      showToast('Failed to update order. Please check your connection.', 'error')
+      toast.success('Failed to update order. Please check your connection.')
     } finally {
       setUpdating(null)
     }
@@ -183,13 +182,13 @@ function AdminOrdersContent() {
         )
       )
 
-      showToast(`${selectedOrders.length} orders updated to ${bulkStatus}`, 'success')
+      toast.success(`${selectedOrders.length} orders updated to ${bulkStatus}`)
       setSelectedOrders([])
       setShowBulkUpdateModal(false)
       setBulkStatus('')
       fetchOrders()
     } catch {
-      showToast('Failed to update orders', 'error')
+      toast.success('Failed to update orders')
     } finally {
       setUpdating(null)
     }
