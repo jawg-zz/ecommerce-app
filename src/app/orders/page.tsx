@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useApp } from '@/components/Providers'
 import { formatPrice } from '@/lib/utils'
 
@@ -30,6 +31,8 @@ function OrdersContent() {
   const searchParams = useSearchParams()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const statusFilter = searchParams.get('status') || ''
 
@@ -37,19 +40,23 @@ function OrdersContent() {
     if (!user) return
 
     const fetchOrders = async () => {
+      setLoading(true)
       const params = new URLSearchParams()
+      params.set('page', page.toString())
+      params.set('limit', '20')
       if (statusFilter) params.set('status', statusFilter)
       
       const res = await fetch(`/api/orders?${params}`)
       if (res.ok) {
         const data = await res.json()
         setOrders(data.orders || [])
+        setTotalPages(data.totalPages || 1)
       }
       setLoading(false)
     }
 
     fetchOrders()
-  }, [user, statusFilter])
+  }, [user, statusFilter, page])
 
   if (!user) {
     return (
@@ -151,10 +158,11 @@ function OrdersContent() {
                     <div key={item.id} className="flex gap-4">
                       <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
                         {item.product.image ? (
-                          <img
+                          <Image
                             src={item.product.image}
                             alt={item.product.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-400">
@@ -195,6 +203,28 @@ function OrdersContent() {
                 </div>
               </div>
             ))}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="px-4 text-slate-600">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page === totalPages}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12">

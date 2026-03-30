@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logInfo, logError } from '@/lib/logger'
+import { logCallbackError, logStructuredInfo } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
 
 const SAFARICOM_IPS = new Set([
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
       const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
 
-      if (!amount || Number(amount) <= 0 || order.total !== Number(amount)) {
+      if (!amount || Number(amount) <= 0 || Number(order.total) !== Number(amount)) {
         logError('Payment amount mismatch', {
           orderId: order.id,
           expected: order.total,
@@ -104,23 +105,46 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
       }
 
-      await prisma.order.update({
+      const orderWithItems = await prisma.order.update({
         where: { id: order.id },
         data: {
           status: 'PAID',
           mpesaCheckoutRequestId: CheckoutRequestID,
           reference: mpesaReceiptNumber,
         },
+        include: {
+          user: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
       })
 
       await clearCart(order.userId)
 
-      logInfo('Payment successful', {
+      logInfo('ORDER CONFIRMATION - Payment successful', {
         orderId: order.id,
-        amount,
+        orderNumber: order.id.slice(0, 8),
+        amount: order.total,
+        amountPaid: Number(amount),
         mpesaReceiptNumber,
-        phoneNumber,
+        customerPhone: phoneNumber,
+        customerName: orderWithItems.user.name,
+        customerEmail: orderWithItems.user.email,
+        items: orderWithItems.items.map(item => ({
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitPrice: Number(item.price),
+          subtotal: Number(item.price) * item.quantity,
+        })),
+        totalItems: orderWithItems.items.reduce((sum, item) => sum + item.quantity, 0),
       })
+      
+      // TODO: Integrate with email/SMS service to send order confirmation
+      // - Send email to customer with order details
+      // - Send SMS notification with order summary
     } else {
       const orderWithItems = await prisma.order.update({
         where: { id: order.id },
@@ -145,6 +169,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   } catch (error) {
     logError('M-Pesa callback error', { error: String(error), ip: clientIP })
+    logCallbackError(error instanceof Error ? error : new Error(String(error)))
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   }
 }

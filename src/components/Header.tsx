@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from './Providers'
 import { useRouter } from 'next/navigation'
@@ -401,9 +402,9 @@ export function Header() {
                         setSearchResults([])
                       }}
                     >
-                      <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                      <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                         {product.image ? (
-                          <img src={product.image} alt="" className="w-full h-full object-cover" />
+                          <Image src={product.image} alt="" fill className="object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-400">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import { isNetworkError } from '@/lib/validation'
@@ -85,6 +86,9 @@ function AdminOrdersContent() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
@@ -93,12 +97,15 @@ function AdminOrdersContent() {
   const [bulkStatus, setBulkStatus] = useState<string>('')
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false)
+  const [dateRange, setDateRange] = useState('all')
+  const [customDateFrom, setCustomDateFrom] = useState('')
+  const [customDateTo, setCustomDateTo] = useState('')
 
   const statusFilter = searchParams.get('status') || ''
 
   useEffect(() => {
     fetchOrders()
-  }, [statusFilter])
+  }, [statusFilter, page, dateRange, customDateFrom, customDateTo])
 
   useEffect(() => {
     let result = [...orders]
@@ -123,7 +130,12 @@ function AdminOrdersContent() {
   const fetchOrders = async () => {
     try {
       const params = new URLSearchParams()
+      params.set('page', page.toString())
+      params.set('limit', '20')
       if (statusFilter) params.set('status', statusFilter)
+      if (dateRange !== 'all') params.set('dateRange', dateRange)
+      if (dateRange === 'custom' && customDateFrom) params.set('dateFrom', customDateFrom)
+      if (dateRange === 'custom' && customDateTo) params.set('dateTo', customDateTo)
 
       const res = await fetch(`/api/admin/orders?${params}`)
       const data = await res.json()
@@ -134,6 +146,8 @@ function AdminOrdersContent() {
       }
 
       setOrders(data.orders || [])
+      setTotalPages(data.totalPages || 1)
+      setTotal(data.total || 0)
     } catch {
       toast.success('Failed to load orders. Please check your connection.')
     } finally {
@@ -395,6 +409,41 @@ function AdminOrdersContent() {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-600">Date:</span>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="input-field py-1.5 w-36"
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+        
+        {dateRange === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customDateFrom}
+              onChange={(e) => setCustomDateFrom(e.target.value)}
+              className="input-field py-1.5"
+            />
+            <span className="text-slate-400">to</span>
+            <input
+              type="date"
+              value={customDateTo}
+              onChange={(e) => setCustomDateTo(e.target.value)}
+              className="input-field py-1.5"
+            />
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
@@ -521,12 +570,13 @@ function AdminOrdersContent() {
                               key={item.id}
                               className="flex items-center gap-3 bg-white p-3 rounded-lg"
                             >
-                              <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden">
+                              <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden relative">
                                 {item.product.image ? (
-                                  <img
+                                  <Image
                                     src={item.product.image}
                                     alt={item.product.name}
-                                    className="w-full h-full object-cover"
+                                    fill
+                                    className="object-cover"
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
@@ -617,6 +667,33 @@ function AdminOrdersContent() {
               </div>
             )
           })}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 px-4">
+              <span className="text-sm text-slate-500">
+                Showing {orders.length} of {total} orders
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="btn-secondary py-1.5 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="px-3 text-slate-600">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page === totalPages}
+                  className="btn-secondary py-1.5 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card p-12 text-center">

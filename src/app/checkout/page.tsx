@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useApp } from '@/components/Providers'
 import { formatPrice } from '@/lib/utils'
 import {
@@ -1077,12 +1078,13 @@ function CheckoutPageContent() {
               <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
                 {cart.items.map((item) => (
                   <div key={item.productId} className="flex gap-3">
-                    <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                    <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                       {item.product.image ? (
-                        <img
+                        <Image
                           src={item.product.image}
                           alt={item.product.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-400">

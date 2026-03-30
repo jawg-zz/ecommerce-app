@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useApp } from '@/components/Providers'
 import { ProductCard } from '@/components/ProductCard'
 import { RecentlyViewedHorizontal } from '@/components/RecentlyViewed'
@@ -71,11 +72,12 @@ function ProductImage({ product }: { product: Product }) {
       onMouseMove={handleMouseMove}
     >
       {product.image ? (
-        <div className="w-full h-full overflow-hidden">
-          <img
+        <div className="w-full h-full overflow-hidden relative">
+          <Image
             src={product.image}
             alt={product.name}
-            className={`w-full h-full object-cover transition-transform duration-300 ${
+            fill
+            className={`object-cover transition-transform duration-300 ${
               isZoomed ? 'scale-150' : 'scale-100'
             }`}
             style={isZoomed ? { transformOrigin: `${position.x}% ${position.y}%` } : undefined}

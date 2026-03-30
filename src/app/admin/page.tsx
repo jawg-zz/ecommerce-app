@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   AreaChart,
   Area,
@@ -480,12 +481,13 @@ export default function AdminDashboard() {
                   className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
                 >
                   <div className="relative">
-                    <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden">
+                    <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden relative">
                       {product.image ? (
-                        <img
+                        <Image
                           src={product.image}
                           alt={product.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-400">

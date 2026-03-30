@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import { validatePrice, validateStock, isNetworkError } from '@/lib/validation'
@@ -652,11 +653,12 @@ export default function AdminProductsPage() {
 
             {formData.image && (
               <div className="flex items-center gap-4">
-                <div className="w-24 h-24 bg-slate-100 rounded-lg overflow-hidden">
-                  <img
+                <div className="w-24 h-24 bg-slate-100 rounded-lg overflow-hidden relative">
+                  <Image
                     src={formData.image}
                     alt="Preview"
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
                     }}
@@ -779,12 +781,13 @@ export default function AdminProductsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                        <div className="w-10 h-10 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                           {product.image ? (
-                            <img
+                            <Image
                               src={product.image}
                               alt={product.name}
-                              className="w-full h-full object-cover"
+                              fill
+                              className="object-cover"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-400">

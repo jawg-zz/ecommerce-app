@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useApp } from '@/components/Providers'
 import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
@@ -128,10 +129,12 @@ export default function WishlistPage() {
               <Link href={`/products/${product.id}`}>
                 <div className="aspect-square bg-slate-100 relative overflow-hidden">
                   {product.image ? (
-                    <img
+                    <Image
                       src={product.image}
                       alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">

@@ -5,6 +5,7 @@ import { getCart, clearCart } from '@/lib/cart'
 import { prisma } from '@/lib/prisma'
 import { initiateSTKPush, querySTKStatus } from '@/lib/mpesa'
 import { logError } from '@/lib/logger'
+import { logCheckoutError, logPaymentError } from '@/lib/errors'
 import { checkoutRateLimiter } from '@/lib/ratelimit'
 
 const checkoutSchema = z.object({
@@ -65,6 +66,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Stock reservation with row-level locking to prevent race conditions
+    const outOfStockItems: string[] = []
+    
     const order = await prisma.$transaction(async (tx) => {
       for (const item of cart.items) {
         // Use FOR UPDATE to lock the row and prevent concurrent checkouts
@@ -72,11 +75,20 @@ export async function POST(request: NextRequest) {
           SELECT id, name, stock FROM "Product" WHERE id = ${item.productId} FOR UPDATE
         `
         
-        if (!product || product.stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${product?.name || 'product'}`)
+        if (!product) {
+          outOfStockItems.push(`${item.productId} (not found)`)
+        } else if (product.stock < item.quantity) {
+          outOfStockItems.push(`${product.name} (${product.stock} available, ${item.quantity} requested)`)
         }
-        
-        // Decrement stock immediately to reserve it
+      }
+      
+      // Check if any items are out of stock before proceeding
+      if (outOfStockItems.length > 0) {
+        throw new Error('OUT_OF_STOCK:' + outOfStockItems.join(';'))
+      }
+      
+      // All stock available - reserve it
+      for (const item of cart.items) {
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
@@ -130,7 +142,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    if (error instanceof Error && error.message.startsWith('OUT_OF_STOCK:')) {
+      const outOfStockItems = error.message.replace('OUT_OF_STOCK:', '').split(';')
+      return NextResponse.json(
+        { 
+          error: 'Some items are out of stock or have insufficient quantity',
+          outOfStock: outOfStockItems
+        },
+        { status: 400 }
+      )
+    }
+    
     logError('Checkout error', { error: String(error) })
+    logCheckoutError(error instanceof Error ? error : new Error(String(error)), user.id)
     
     // Don't expose internal error details to users
     return NextResponse.json(
@@ -148,14 +173,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const { searchParams } = new URL(request.url)
+  const orderId = searchParams.get('orderId')
+
+  if (!orderId) {
+    return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
+  }
+
   try {
-    const { searchParams } = new URL(request.url)
-    const orderId = searchParams.get('orderId')
-
-    if (!orderId) {
-      return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
-    }
-
     const order = await prisma.order.findUnique({
       where: { id: orderId, userId: user.id },
     })
@@ -170,6 +195,34 @@ export async function GET(request: NextRequest) {
 
     if (!order.mpesaCheckoutRequestId) {
       return NextResponse.json({ status: 'pending' })
+    }
+
+    // Check for payment timeout (10 minutes)
+    const PAYMENT_TIMEOUT_MS = 10 * 60 * 1000
+    const orderAge = Date.now() - new Date(order.createdAt).getTime()
+    
+    if (orderAge > PAYMENT_TIMEOUT_MS && order.status === 'PENDING') {
+      await prisma.$transaction(async (tx) => {
+        const cancelledOrder = await tx.order.update({
+          where: { id: orderId },
+          data: { status: 'CANCELLED' },
+          include: { items: true },
+        })
+
+        for (const item of cancelledOrder.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+      })
+
+      await clearCart(user.id)
+
+      return NextResponse.json({ 
+        status: 'timeout',
+        message: 'Payment timed out. Your order has been cancelled and stock restored. Please try again.'
+      })
     }
 
     // Query M-Pesa status
@@ -219,7 +272,8 @@ export async function GET(request: NextRequest) {
       message: paymentStatus.status === 'failed' ? 'Payment failed. Please try again.' : 'Payment pending'
     })
   } catch (error) {
-    logError('Payment status check error', { error: String(error) })
+    logError('Payment status check error', { error: String(error), orderId })
+    logPaymentError(error instanceof Error ? error : new Error(String(error)), orderId, user.id)
     return NextResponse.json(
       { error: 'Failed to check payment status' },
       { status: 500 }
@@ -235,14 +289,14 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const { searchParams } = new URL(request.url)
+  const orderId = searchParams.get('orderId')
+
+  if (!orderId) {
+    return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
+  }
+
   try {
-    const { searchParams } = new URL(request.url)
-    const orderId = searchParams.get('orderId')
-
-    if (!orderId) {
-      return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
-    }
-
     const order = await prisma.order.findUnique({
       where: { id: orderId, userId: user.id },
       include: { items: true },
@@ -273,7 +327,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: 'Payment cancelled and stock restored' })
   } catch (error) {
-    logError('Payment cancellation error', { error: String(error) })
+    logError('Payment cancellation error', { error: String(error), orderId })
+    logPaymentError(error instanceof Error ? error : new Error(String(error)), orderId || '', user.id)
     return NextResponse.json(
       { error: 'Failed to cancel payment' },
       { status: 500 }

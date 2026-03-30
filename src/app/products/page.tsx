@@ -22,6 +22,7 @@ function ProductsContent() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
 
   const category = searchParams.get('category') || ''
   const search = searchParams.get('search') || ''
@@ -67,14 +68,20 @@ function ProductsContent() {
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const searchValue = formData.get('search') as string
     const params = new URLSearchParams(searchParams.toString())
-    if (searchValue) {
-      params.set('search', searchValue)
+    if (searchInput) {
+      params.set('search', searchInput)
     } else {
       params.delete('search')
     }
+    params.delete('page')
+    router.push(`/products?${params.toString()}`)
+  }
+
+  const clearSearch = () => {
+    setSearchInput('')
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('search')
     params.delete('page')
     router.push(`/products?${params.toString()}`)
   }
@@ -85,14 +92,26 @@ function ProductsContent() {
         <h1 className="text-3xl font-bold mb-8">Products</h1>
 
         <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <form onSubmit={handleSearch} className="flex-1">
+          <form onSubmit={handleSearch} className="flex-1 relative">
             <input
               type="text"
               name="search"
-              defaultValue={search}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search products..."
-              className="input-field"
+              className="input-field pr-10"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
           </form>
 
           <select
@@ -117,6 +136,12 @@ function ProductsContent() {
             <option value="name">Name</option>
           </select>
         </div>
+
+        {!loading && search && (
+          <p className="text-slate-600 mb-4">
+            {total === 1 ? '1 result' : `${total} results`} for '{search}'
+          </p>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

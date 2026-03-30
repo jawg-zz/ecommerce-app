@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useApp } from '@/components/Providers'
 import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
@@ -239,12 +240,13 @@ export default function CartPage() {
                 key={item.productId}
                 className="card p-4 sm:p-6 flex gap-4 sm:gap-6 animate-fade-in"
               >
-                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 relative">
                   {item.product.image ? (
-                    <img
+                    <Image
                       src={item.product.image}
                       alt={item.product.name}
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                      fill
+                      className="object-cover hover:scale-110 transition-transform duration-300"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">

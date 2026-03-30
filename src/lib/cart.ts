@@ -61,14 +61,15 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
     .map(item => {
       const product = productMap.get(item.productId)
       if (!product) return null
-      total += product.price * item.quantity
+      const price = Number(product.price)
+      total += price * item.quantity
       return {
         productId: item.productId,
         quantity: item.quantity,
         product: {
           id: product.id,
           name: product.name,
-          price: product.price,
+          price,
           image: product.image,
           stock: product.stock,
         },
@@ -181,4 +182,134 @@ export async function removeFromCart(userId: string, productId: string): Promise
 export async function clearCart(userId: string): Promise<void> {
   const key = getCartKey(userId)
   await redis.del(key)
+}
+
+export async function backupCartToDb(userId: string, cart: CartWithProducts): Promise<void> {
+  const cartItems = cart.items.map(item => ({
+    productId: item.productId,
+    quantity: item.quantity,
+  }))
+
+  await prisma.cartBackup.upsert({
+    where: { userId },
+    update: {
+      items: cartItems,
+      total: cart.total,
+    },
+    create: {
+      userId,
+      items: cartItems,
+      total: cart.total,
+    },
+  })
+}
+
+export async function restoreCartFromDb(userId: string): Promise<CartWithProducts | null> {
+  const backup = await prisma.cartBackup.findUnique({
+    where: { userId },
+  })
+
+  if (!backup || !backup.items || !Array.isArray(backup.items)) {
+    return null
+  }
+
+  const items = backup.items as unknown as CartItem[]
+  if (!items || items.length === 0) {
+    return null
+  }
+
+  const productIds = items.map(item => item.productId)
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+  })
+
+  const productMap = new Map(products.map(p => [p.id, p]))
+
+  let total = 0
+  const cartItems = items
+    .map(item => {
+      const product = productMap.get(item.productId)
+      if (!product) return null
+      const price = Number(product.price)
+      total += price * item.quantity
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        product: {
+          id: product.id,
+          name: product.name,
+          price,
+          image: product.image,
+          stock: product.stock,
+        },
+      }
+    })
+    .filter(Boolean) as CartWithProducts['items']
+
+  return { items: cartItems, total }
+}
+
+export async function getCartWithBackup(userId: string): Promise<CartWithProducts> {
+  const key = getCartKey(userId)
+  const cartData = await redis.get(key)
+
+  if (!cartData) {
+    const backupCart = await restoreCartFromDb(userId)
+    if (backupCart && backupCart.items.length > 0) {
+      const cartJson = JSON.stringify(backupCart.items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })))
+      await redis.set(key, cartJson)
+      return backupCart
+    }
+    return { items: [], total: 0 }
+  }
+
+  let items: CartItem[]
+  try {
+    const parsed = JSON.parse(cartData)
+    items = Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    console.error('Failed to parse cart data:', error)
+    await redis.del(key)
+    return { items: [], total: 0 }
+  }
+
+  if (items.length === 0) {
+    return { items: [], total: 0 }
+  }
+
+  const productIds = items.map(item => item.productId)
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+  })
+
+  const productMap = new Map(products.map(p => [p.id, p]))
+
+  let total = 0
+  const cartItems = items
+    .map(item => {
+      const product = productMap.get(item.productId)
+      if (!product) return null
+      total += product.price * item.quantity
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        product: {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          stock: product.stock,
+        },
+      }
+    })
+    .filter(Boolean) as CartWithProducts['items']
+
+  if (cartItems.length > 0) {
+    await backupCartToDb(userId, { items: cartItems, total })
+  }
+
+  return { items: cartItems, total }
 }

@@ -8,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  name         String
+  role         Role          @default(USER)
+  orders       Order[]
+  cartBackups  CartBackup[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Product {
@@ -23,7 +24,9 @@ model Product {
   name        String
   description String?
   price       Int
-  category    Category
+  category    String?
+  categoryId  String?
+  categoryRef Category?   @relation(fields: [categoryId], references: [id])
   image       String?
   stock       Int         @default(0)
   orderItems  OrderItem[]
@@ -31,6 +34,7 @@ model Product {
   updatedAt   DateTime    @updatedAt
 
   @@index([category])
+  @@index([categoryId])
   @@index([stock])
 }
 
@@ -72,10 +76,16 @@ enum Role {
   ADMIN
 }
 
-enum Category {
-  ELECTRONICS
-  CLOTHING
-  BOOKS
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([slug])
 }
 
 enum OrderStatus {
@@ -84,4 +94,16 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+model CartBackup {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     Json
+  total     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
 }

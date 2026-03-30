@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { OrderStatus } from '@prisma/client'
+
+const orderStatuses: OrderStatus[] = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
@@ -12,10 +15,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') || '1')
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+  const status = searchParams.get('status')
+
+  const where = status && orderStatuses.includes(status as OrderStatus)
+    ? { userId: user.id, status: status as OrderStatus }
+    : { userId: user.id }
 
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
-      where: { userId: user.id },
+      where,
       include: {
         items: {
           include: {
@@ -27,7 +35,7 @@ export async function GET(request: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.order.count({ where: { userId: user.id } }),
+    prisma.order.count({ where }),
   ])
 
   return NextResponse.json({

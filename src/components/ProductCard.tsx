@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useApp } from './Providers'
 import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
@@ -121,11 +122,13 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
         
         {product.image ? (
-          <img
+          <Image
             src={product.image}
             alt={product.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             onLoad={() => setImageLoaded(true)}
-            className={`w-full h-full object-cover transition-all duration-500 ${
+            className={`object-cover transition-all duration-500 ${
               isHovered ? 'scale-110' : 'scale-100'
             } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
