@@ -43,7 +43,7 @@ function OrdersContent() {
       const res = await fetch(`/api/orders?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setOrders(data)
+        setOrders(data.orders || [])
       }
       setLoading(false)
     }
