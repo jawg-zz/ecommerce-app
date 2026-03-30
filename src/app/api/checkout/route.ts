@@ -46,6 +46,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
     }
 
+    const existingPendingOrder = await prisma.order.findFirst({
+      where: { 
+        userId: user.id,
+        status: 'PENDING',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    })
+
+    if (existingPendingOrder && existingPendingOrder.mpesaCheckoutRequestId) {
+      return NextResponse.json({
+        orderId: existingPendingOrder.id,
+        checkoutRequestId: existingPendingOrder.mpesaCheckoutRequestId,
+        amount: cart.total,
+        message: 'Existing payment in progress',
+      })
+    }
+
     // Stock reservation with row-level locking to prevent race conditions
     const order = await prisma.$transaction(async (tx) => {
       for (const item of cart.items) {
@@ -204,6 +222,60 @@ export async function GET(request: NextRequest) {
     logError('Payment status check error', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to check payment status' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE: Cancel payment and restore stock
+export async function DELETE(request: NextRequest) {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const orderId = searchParams.get('orderId')
+
+    if (!orderId) {
+      return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId, userId: user.id },
+      include: { items: true },
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    if (order.status === 'PAID') {
+      return NextResponse.json({ error: 'Cannot cancel paid order' }, { status: 400 })
+    }
+
+    // Restore stock and cancel order
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'CANCELLED' },
+      })
+
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        })
+      }
+    })
+
+    return NextResponse.json({ message: 'Payment cancelled and stock restored' })
+  } catch (error) {
+    logError('Payment cancellation error', { error: String(error) })
+    return NextResponse.json(
+      { error: 'Failed to cancel payment' },
       { status: 500 }
     )
   }

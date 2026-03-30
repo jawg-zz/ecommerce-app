@@ -93,13 +93,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
     }
 
+    if (order.status === 'PAID') {
+      logInfo('Order already paid', { orderId: order.id, CheckoutRequestID })
+      return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
+    }
+
     if (ResultCode === 0) {
       const metadata = CallbackMetadata?.Item || []
       const amount = metadata.find((item: any) => item.Name === 'Amount')?.Value
       const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
       const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
 
-      if (amount && Number(order.total) !== Number(amount)) {
+      if (!amount || Number(amount) <= 0 || Number(order.total) !== Number(amount)) {
         logError('Payment amount mismatch', {
           orderId: order.id,
           expected: order.total,
@@ -126,12 +131,20 @@ export async function POST(request: NextRequest) {
         phoneNumber,
       })
     } else {
-      await prisma.order.update({
+      const orderWithItems = await prisma.order.update({
         where: { id: order.id },
         data: { status: 'CANCELLED' },
+        include: { items: true },
       })
 
-      logInfo('Payment failed', {
+      for (const item of orderWithItems.items) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        })
+      }
+
+      logInfo('Payment failed - stock restored', {
         orderId: order.id,
         ResultCode,
         ResultDesc,

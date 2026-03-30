@@ -377,15 +377,26 @@ function CheckoutPageContent() {
     return !nameError && !addressError && !cityError && !stateError && !zipCodeError && phoneValidation.isValid
   }, [shippingAddress, phone])
 
-  const cancelPayment = useCallback(() => {
+  const cancelPayment = useCallback(async () => {
     cancelRef.current = true
     if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current)
+      clearTimeout(pollIntervalRef.current)
       pollIntervalRef.current = null
     }
+    
+    const orderId = retryDataRef.current?.orderId
+    if (orderId) {
+      try {
+        await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
+      } catch (e) {
+        console.error('Failed to cancel order:', e)
+      }
+    }
+    
     setCurrentStep('shipping')
     setError('')
     setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
+    refreshCart()
   }, [])
 
   const formatTime = (seconds: number): string => {
@@ -394,8 +405,10 @@ function CheckoutPageContent() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleRetry = () => {
-    if (retryDataRef.current) {
+  const handleRetry = async () => {
+    if (retryDataRef.current?.orderId) {
+      pollPaymentStatus(retryDataRef.current.orderId, retryDataRef.current.orderId)
+    } else if (retryDataRef.current) {
       retryPayment(retryDataRef.current.shippingAddress, retryDataRef.current.phone)
     }
   }
@@ -440,6 +453,7 @@ function CheckoutPageContent() {
         return
       }
 
+      retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
       pollPaymentStatus(data.checkoutRequestId, data.orderId)
     } catch (err) {
       if (isNetworkError(err)) {
@@ -479,20 +493,26 @@ function CheckoutPageContent() {
       return
     }
 
-    retryDataRef.current = { shippingAddress, phone }
     retryPayment(shippingAddress, phone.replace(/\D/g, ''))
   }
 
   const pollPaymentStatus = async (checkoutId: string, orderId: string) => {
-    const timerInterval = setInterval(() => {
+    const timerRef = { current: null as NodeJS.Timeout | null }
+    
+    const cleanup = () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+      if (pollIntervalRef.current) {
+        clearTimeout(pollIntervalRef.current)
+      }
+    }
+
+    timerRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          clearInterval(timerInterval)
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current)
-          }
-          setError('Payment timed out. Please try again.')
-          setCurrentStep('shipping')
+          cleanup()
+          handlePaymentTimeout(orderId)
           return 0
         }
         return prev - 1
@@ -501,12 +521,12 @@ function CheckoutPageContent() {
 
     const poll = async () => {
       if (cancelRef.current) {
-        clearInterval(timerInterval)
+        cleanup()
         return
       }
 
       if (!orderId) {
-        clearInterval(timerInterval)
+        cleanup()
         setError('Order ID missing')
         return
       }
@@ -516,58 +536,59 @@ function CheckoutPageContent() {
         const data = await res.json()
 
         if (data.status === 'success') {
-          clearInterval(timerInterval)
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current)
-          }
+          cleanup()
           setPaymentStage('success')
           setStatusMessage('Payment confirmed! Processing your order...')
           
           const orderNum = data.order?.id || orderId
           setOrderNumber(orderNum.slice(0, 8).toUpperCase())
           setCurrentStep('confirmation')
-          setCart({ items: [], total: 0 })
+          
+          try {
+            await fetch(`/api/cart`, { method: 'DELETE' })
+          } catch (e) {
+            console.error('Failed to clear cart:', e)
+          }
+          refreshCart()
           return
         }
 
         if (data.errorCode) {
-          clearInterval(timerInterval)
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current)
-          }
+          cleanup()
           setError(getMpesaErrorMessage(data.errorCode))
-          setCurrentStep('shipping')
+          handlePaymentTimeout(orderId)
           return
         }
 
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerInterval)
-            setError('Payment timed out. Please try again.')
-            setCurrentStep('shipping')
-            return 0
-          }
-          return prev
-        })
+        if (data.error) {
+          cleanup()
+          setError(data.error)
+          handlePaymentTimeout(orderId)
+          return
+        }
 
         setPaymentStage('polling')
         setStatusMessage('Waiting for you to enter PIN...')
         pollIntervalRef.current = setTimeout(poll, 3000)
       } catch {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerInterval)
-            setError('Failed to verify payment. Please try again.')
-            setCurrentStep('shipping')
-            return 0
-          }
-          return prev
-        })
         pollIntervalRef.current = setTimeout(poll, 3000)
       }
     }
 
     pollIntervalRef.current = setTimeout(poll, 3000)
+  }
+
+  const handlePaymentTimeout = async (orderId: string) => {
+    setError('Payment timed out. Please try again.')
+    setCurrentStep('shipping')
+    
+    try {
+      await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
+    } catch (e) {
+      console.error('Failed to cancel order:', e)
+    }
+    
+    refreshCart()
   }
 
   const subtotal = cart.total
