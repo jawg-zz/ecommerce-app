@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logInfo, logError } from '@/lib/logger'
+import { clearCart } from '@/lib/cart'
 
 const SAFARICOM_IPS = new Set([
   '196.201.214.200',
@@ -115,6 +116,8 @@ export async function POST(request: NextRequest) {
           reference: mpesaReceiptNumber,
         },
       })
+
+      await clearCart(order.userId)
 
       logInfo('Payment successful', {
         orderId: order.id,
