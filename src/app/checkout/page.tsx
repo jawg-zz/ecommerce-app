@@ -60,7 +60,7 @@ function getEstimatedDelivery(): string {
 }
 
 function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
-  const steps: { key: CheckoutStep; label: string; icon: JSX.Element }[] = [
+  const steps: { key: CheckoutStep; label: string; icon: React.ReactElement }[] = [
     { 
       key: 'shipping', 
       label: 'Shipping',
