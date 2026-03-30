@@ -61,14 +61,14 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
     .map(item => {
       const product = productMap.get(item.productId)
       if (!product) return null
-      total += Number(product.price) * item.quantity
+      total += product.price * item.quantity
       return {
         productId: item.productId,
         quantity: item.quantity,
         product: {
           id: product.id,
           name: product.name,
-          price: Number(product.price),
+          price: product.price,
           image: product.image,
           stock: product.stock,
         },

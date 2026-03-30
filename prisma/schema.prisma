@@ -22,7 +22,7 @@ model Product {
   id          String      @id @default(uuid())
   name        String
   description String?
-  price       Decimal     @db.Decimal(10, 2)
+  price       Int
   category    Category
   image       String?
   stock       Int         @default(0)
@@ -40,7 +40,7 @@ model Order {
   user                   User        @relation(fields: [userId], references: [id])
   status                 OrderStatus @default(PENDING)
   items                  OrderItem[]
-  total                  Decimal     @db.Decimal(10, 2)
+  total                  Int
   stripePaymentId        String?
   mpesaCheckoutRequestId String?
   mpesaMerchantRequestId String?
@@ -61,7 +61,7 @@ model OrderItem {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity  Int
-  price     Decimal @db.Decimal(10, 2)
+  price     Int
 
   @@index([orderId])
   @@index([productId])

@@ -139,10 +139,20 @@ export function validateNumber(value: string | number, min?: number, max?: numbe
 }
 
 export function validatePrice(price: string | number): ValidationResult {
-  const result = validateNumber(price, 0.01)
-  if (!result.isValid) {
-    return { isValid: false, error: 'Price must be greater than 0' }
+  const num = typeof price === 'string' ? parseFloat(price) : price
+  
+  if (isNaN(num)) {
+    return { isValid: false, error: 'Price must be a valid number' }
   }
+  
+  if (num < 1) {
+    return { isValid: false, error: 'Price must be at least 1 KES' }
+  }
+  
+  if (!Number.isInteger(num)) {
+    return { isValid: false, error: 'Price must be a whole number' }
+  }
+  
   return { isValid: true }
 }
 

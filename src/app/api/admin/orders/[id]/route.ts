@@ -52,13 +52,10 @@ export async function PUT(
 
     return NextResponse.json({
       ...order,
-      total: order.total.toNumber(),
       items: order.items.map(item => ({
         ...item,
-        price: item.price.toNumber(),
         product: {
           ...item.product,
-          price: item.product.price.toNumber(),
         },
       })),
     })

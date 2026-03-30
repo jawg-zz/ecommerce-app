@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
       const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
 
-      if (!amount || Number(amount) <= 0 || Number(order.total) !== Number(amount)) {
+      if (!amount || Number(amount) <= 0 || order.total !== Number(amount)) {
         logError('Payment amount mismatch', {
           orderId: order.id,
           expected: order.total,

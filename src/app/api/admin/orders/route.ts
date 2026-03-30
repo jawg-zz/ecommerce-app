@@ -53,13 +53,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     orders: orders.map(order => ({
       ...order,
-      total: order.total.toNumber(),
       items: order.items.map(item => ({
         ...item,
-        price: item.price.toNumber(),
         product: {
           ...item.product,
-          price: item.product.price.toNumber(),
         },
       })),
     })),

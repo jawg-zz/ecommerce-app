@@ -57,7 +57,7 @@ export async function PUT(
       data,
     })
 
-  return NextResponse.json({ ...product, price: product.price.toNumber() })
+  return NextResponse.json(product)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

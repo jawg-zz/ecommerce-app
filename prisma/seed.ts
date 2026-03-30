@@ -36,7 +36,7 @@ async function main() {
     {
       name: 'iPhone 15 Pro',
       description: 'The most powerful iPhone ever with A17 Pro chip, titanium design, and advanced camera system.',
-      price: 999.00,
+      price: 1000,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800',
       stock: 50,
@@ -44,7 +44,7 @@ async function main() {
     {
       name: 'MacBook Pro 14"',
       description: 'Supercharged by M3 Pro or M3 Max chip. Up to 22 hours of battery life.',
-      price: 1999.00,
+      price: 2000,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800',
       stock: 30,
@@ -52,7 +52,7 @@ async function main() {
     {
       name: 'AirPods Pro (2nd Gen)',
       description: 'Active Noise Cancellation, Adaptive Transparency, and personalized Spatial Audio.',
-      price: 249.00,
+      price: 250,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=800',
       stock: 100,
@@ -60,7 +60,7 @@ async function main() {
     {
       name: 'iPad Air',
       description: 'Powerful and versatile. With M1 chip, 10.9-inch Liquid Retina display, and more.',
-      price: 599.00,
+      price: 600,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800',
       stock: 45,
@@ -68,7 +68,7 @@ async function main() {
     {
       name: 'Samsung Galaxy S24 Ultra',
       description: 'The ultimate smartphone with S Pen, AI features, and 200MP camera.',
-      price: 1299.00,
+      price: 1300,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=800',
       stock: 40,
@@ -76,7 +76,7 @@ async function main() {
     {
       name: 'Sony WH-1000XM5',
       description: 'Industry-leading noise cancellation with exceptional sound quality.',
-      price: 399.00,
+      price: 400,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=800',
       stock: 60,
@@ -84,7 +84,7 @@ async function main() {
     {
       name: 'Apple Watch Series 9',
       description: 'The ultimate device for a healthy life. With S9 SiP, Always-On Retina display.',
-      price: 399.00,
+      price: 400,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=800',
       stock: 75,
@@ -92,7 +92,7 @@ async function main() {
     {
       name: 'Nintendo Switch OLED',
       description: 'Vivid 7-inch OLED screen, wide adjustable stand, and enhanced audio.',
-      price: 349.00,
+      price: 350,
       category: 'ELECTRONICS' as const,
       image: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=800',
       stock: 35,
@@ -100,7 +100,7 @@ async function main() {
     {
       name: 'Classic Denim Jacket',
       description: 'Timeless denim jacket made from 100% cotton. Perfect for any casual outfit.',
-      price: 89.99,
+      price: 90,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=800',
       stock: 80,
@@ -108,7 +108,7 @@ async function main() {
     {
       name: 'Cotton T-Shirt Pack (3)',
       description: 'Premium cotton t-shirts. Set of 3 in classic colors. Soft and breathable.',
-      price: 39.99,
+      price: 40,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800',
       stock: 150,
@@ -116,7 +116,7 @@ async function main() {
     {
       name: 'Running Shoes',
       description: 'Lightweight running shoes with responsive cushioning. Perfect for athletes.',
-      price: 129.99,
+      price: 130,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800',
       stock: 65,
@@ -124,7 +124,7 @@ async function main() {
     {
       name: 'Wool Sweater',
       description: 'Merino wool sweater. Warm, comfortable, and stylish for cold weather.',
-      price: 149.99,
+      price: 150,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800',
       stock: 55,
@@ -132,7 +132,7 @@ async function main() {
     {
       name: 'Casual Hoodie',
       description: 'Soft fleece hoodie with adjustable hood. Perfect for everyday wear.',
-      price: 79.99,
+      price: 80,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800',
       stock: 90,
@@ -140,7 +140,7 @@ async function main() {
     {
       name: 'Leather Belt',
       description: 'Genuine leather belt with classic buckle. Durable and stylish.',
-      price: 49.99,
+      price: 50,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800',
       stock: 70,
@@ -148,7 +148,7 @@ async function main() {
     {
       name: 'Sports Shorts',
       description: 'Lightweight athletic shorts with moisture-wicking fabric. Ideal for workouts.',
-      price: 44.99,
+      price: 45,
       category: 'CLOTHING' as const,
       image: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=800',
       stock: 85,
@@ -156,7 +156,7 @@ async function main() {
     {
       name: 'The Great Gatsby',
       description: 'F. Scott Fitzgerald\'s classic novel of the Jazz Age. A tale of love and ambition.',
-      price: 14.99,
+      price: 15,
       category: 'BOOKS' as const,
       image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800',
       stock: 120,
@@ -164,7 +164,7 @@ async function main() {
     {
       name: '1984',
       description: 'George Orwell\'s dystopian masterpiece. A profound warning against totalitarianism.',
-      price: 12.99,
+      price: 13,
       category: 'BOOKS' as const,
       image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800',
       stock: 100,
@@ -172,7 +172,7 @@ async function main() {
     {
       name: 'Clean Code',
       description: 'Robert C. Martin\'s guide to writing maintainable and efficient code.',
-      price: 44.99,
+      price: 45,
       category: 'BOOKS' as const,
       image: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=800',
       stock: 60,
@@ -180,7 +180,7 @@ async function main() {
     {
       name: 'Introduction to Algorithms',
       description: 'Comprehensive textbook covering fundamental algorithms and data structures.',
-      price: 89.99,
+      price: 90,
       category: 'BOOKS' as const,
       image: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=800',
       stock: 40,
@@ -188,7 +188,7 @@ async function main() {
     {
       name: 'Atomic Habits',
       description: 'James Clear\'s proven framework for improving every day.',
-      price: 16.99,
+      price: 17,
       category: 'BOOKS' as const,
       image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800',
       stock: 95,
@@ -196,7 +196,7 @@ async function main() {
     {
       name: 'Sapiens',
       description: 'Yuval Noah Harari\'s brief history of humankind. From Stone Age to the future.',
-      price: 18.99,
+      price: 19,
       category: 'BOOKS' as const,
       image: 'https://images.unsplash.com/photo-1550399105-c4db5fb85c18?w=800',
       stock: 80,

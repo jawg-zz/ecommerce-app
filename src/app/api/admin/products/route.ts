@@ -23,7 +23,7 @@ const imageUrlSchema = z.string()
 const productSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
-  price: z.number().positive(),
+  price: z.number().int().positive(),
   category: z.enum(['ELECTRONICS', 'CLOTHING', 'BOOKS']),
   image: imageUrlSchema,
   stock: z.number().int().min(0).default(0),
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   ])
 
   return NextResponse.json({
-    products: products.map(p => ({ ...p, price: p.price.toNumber() })),
+    products,
     total,
     page,
     totalPages: Math.ceil(total / limit),
