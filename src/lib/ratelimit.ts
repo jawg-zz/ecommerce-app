@@ -45,9 +45,11 @@ class SimpleRateLimiter {
         }
       }
 
-      // Add current request
-      await redis.zadd(key, now, `${now}:${Math.random()}`)
-      await redis.expire(key, Math.ceil(this.windowMs / 1000))
+      // Add current request with atomic ZADD + EXPIRE using pipeline
+      const pipeline = redis.pipeline()
+      pipeline.zadd(key, now, `${now}:${Math.random()}`)
+      pipeline.expire(key, Math.ceil(this.windowMs / 1000))
+      await pipeline.exec()
 
       return {
         success: true,

@@ -9,20 +9,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const orders = await prisma.order.findMany({
-    where: { userId: user.id },
-    include: {
-      items: {
-        include: {
-          product: true,
+  const { searchParams } = new URL(request.url)
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: user.id },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.order.count({ where: { userId: user.id } }),
+  ])
 
-  return NextResponse.json(
-    orders.map(order => ({
+  return NextResponse.json({
+    orders: orders.map(order => ({
       ...order,
       total: order.total.toNumber(),
       items: order.items.map(item => ({
@@ -33,6 +42,9 @@ export async function GET(request: NextRequest) {
           price: item.product.price.toNumber(),
         },
       })),
-    }))
-  )
+    })),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  })
 }

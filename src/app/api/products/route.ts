@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
 
   const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '12')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 100)
   const category = searchParams.get('category')
   const search = searchParams.get('search')
   const sort = searchParams.get('sort') || 'newest'
