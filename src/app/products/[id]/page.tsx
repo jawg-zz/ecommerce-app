@@ -5,8 +5,10 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
 import { ProductCard } from '@/components/ProductCard'
+import { RecentlyViewedHorizontal } from '@/components/RecentlyViewed'
 import { formatPrice } from '@/lib/utils'
 import { sanitizeHtml } from '@/lib/sanitize'
+import toast from 'react-hot-toast'
 
 interface Product {
   id: string
@@ -198,13 +200,16 @@ function QuantitySelector({
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { setCart } = useApp()
+  const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed } = useApp()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
+  const [wishlistAnimating, setWishlistAnimating] = useState(false)
+
+  const inWishlist = product ? isInWishlist(product.id) : false
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -212,6 +217,14 @@ export default function ProductDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setProduct(data)
+        
+        addToRecentlyViewed({
+          id: data.id,
+          name: data.name,
+          price: data.price,
+          image: data.image,
+          category: data.category,
+        })
         
         const relatedRes = await fetch(`/api/products?category=${data.category}&limit=4`)
         const relatedData = await relatedRes.json()
@@ -223,10 +236,16 @@ export default function ProductDetailPage() {
     }
 
     fetchProduct()
-  }, [params.id, router])
+  }, [params.id, router, addToRecentlyViewed])
 
   const handleAddToCart = async () => {
     if (!product) return
+    
+    if (product.stock === 0) {
+      toast.error('This item is currently out of stock')
+      return
+    }
+
     setAdding(true)
 
     try {
@@ -240,15 +259,42 @@ export default function ProductDetailPage() {
         const data = await res.json()
         setCart(data)
         setAdded(true)
+        toast.success(`${product.name} added to cart!`)
         
         setTimeout(() => {
           setAdded(false)
         }, 2000)
+      } else {
+        const data = await res.json()
+        if (data.error?.includes('stock') || data.error?.includes('available')) {
+          toast.error(`Not enough stock available. Only ${data.available} items in stock.`)
+        } else {
+          toast.error(data.error || 'Failed to add to cart')
+        }
       }
     } catch (error) {
       console.error('Failed to add to cart:', error)
+      toast.error('Failed to add to cart. Please try again.')
     } finally {
       setAdding(false)
+    }
+  }
+
+  const handleWishlistToggle = () => {
+    if (!product) return
+    
+    if (inWishlist) {
+      removeFromWishlist(product.id)
+    } else {
+      addToWishlist({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        category: product.category,
+      })
+      setWishlistAnimating(true)
+      setTimeout(() => setWishlistAnimating(false), 600)
     }
   }
 
@@ -390,13 +436,23 @@ export default function ProductDetailPage() {
               </button>
 
               <button
-                onClick={() => {}}
-                className="w-full mt-3 py-3 border-2 border-slate-200 text-slate-700 font-medium rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                onClick={handleWishlistToggle}
+                className={`w-full mt-3 py-3 border-2 font-medium rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  inWishlist
+                    ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                    : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                } ${wishlistAnimating ? 'animate-scale' : ''}`}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg 
+                  className="w-5 h-5" 
+                  fill={inWishlist ? 'currentColor' : 'none'} 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor" 
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
-                Add to Wishlist
+                {inWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
               </button>
             </div>
 
@@ -433,6 +489,8 @@ export default function ProductDetailPage() {
             </div>
           </div>
         )}
+
+        <RecentlyViewedHorizontal />
       </div>
     </div>
   )

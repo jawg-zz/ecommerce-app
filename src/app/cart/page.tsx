@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/components/Providers'
-import { useToast } from '@/components/Toast'
 import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
+import toast from 'react-hot-toast'
 
 function QuantitySelector({
   quantity,
@@ -116,7 +116,6 @@ function EmptyCart({ isLoggedIn }: { isLoggedIn: boolean }) {
 export default function CartPage() {
   const router = useRouter()
   const { user, cart, setCart, refreshCart } = useApp()
-  const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [updatingItem, setUpdatingItem] = useState<string | null>(null)
 
@@ -131,7 +130,7 @@ export default function CartPage() {
     
     const item = cart.items.find(i => i.productId === productId)
     if (item && quantity > item.product.stock) {
-      showToast(`Maximum available stock is ${item.product.stock}`, 'error')
+      toast.error(`Maximum available stock is ${item.product.stock}`)
       return
     }
 
@@ -147,9 +146,9 @@ export default function CartPage() {
 
       if (!res.ok) {
         if (data.error?.includes('stock') || data.error?.includes('available')) {
-          showToast(`Not enough stock. Only ${data.available} available.`, 'error')
+          toast.error(`Not enough stock. Only ${data.available} available.`)
         } else {
-          showToast(data.error || 'Failed to update quantity', 'error')
+          toast.error(data.error || 'Failed to update quantity')
         }
         return
       }
@@ -157,9 +156,9 @@ export default function CartPage() {
       setCart(data)
     } catch (err) {
       if (isNetworkError(err)) {
-        showToast('Unable to connect. Please check your connection.', 'error')
+        toast.error('Unable to connect. Please check your connection.')
       } else {
-        showToast('Failed to update quantity. Please try again.', 'error')
+        toast.error('Failed to update quantity. Please try again.')
       }
     } finally {
       setUpdatingItem(null)
@@ -178,17 +177,17 @@ export default function CartPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        showToast(data.error || 'Failed to remove item', 'error')
+        toast.error(data.error || 'Failed to remove item')
         return
       }
 
       setCart(data)
-      showToast('Item removed from cart', 'success')
+      toast.success('Item removed from cart')
     } catch (err) {
       if (isNetworkError(err)) {
-        showToast('Unable to connect. Please check your connection.', 'error')
+        toast.error('Unable to connect. Please check your connection.')
       } else {
-        showToast('Failed to remove item. Please try again.', 'error')
+        toast.error('Failed to remove item. Please try again.')
       }
     } finally {
       setUpdatingItem(null)

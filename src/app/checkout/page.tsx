@@ -11,6 +11,7 @@ import {
   isNetworkError,
 } from '@/lib/validation'
 import { KENYA_COUNTIES, ShippingAddress } from '@/types'
+import toast from 'react-hot-toast'
 
 type CheckoutStep = 'shipping' | 'payment' | 'confirmation'
 
@@ -471,6 +472,7 @@ function CheckoutPageContent() {
 
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || 'Please enter a valid phone number')
+      toast.error(phoneValidation.error || 'Please enter a valid phone number')
     }
 
     if (nameError || addressError || cityError || stateError || zipCodeError || !phoneValidation.isValid) {

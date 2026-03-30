@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from './Providers'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 
 export function Header() {
-  const { user, cart } = useApp()
+  const { user, cart, wishlist } = useApp()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -95,12 +96,12 @@ export function Header() {
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' })
       if (res.ok) {
-        // Force a hard reload to clear all client state
+        toast.success('Logged out successfully')
         window.location.replace('/')
       }
     } catch (error) {
       console.error('Logout failed:', error)
-      // Still redirect even if the request fails
+      toast.error('Logout failed. Please try again.')
       window.location.replace('/')
     }
   }
@@ -203,6 +204,32 @@ export function Header() {
                 {cartCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-sky-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-scale-in">
                     {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                href="/wishlist"
+                className="relative p-2 text-slate-600 hover:text-red-500 hover:bg-slate-100 rounded-lg transition-all touch-target hidden sm:block"
+                aria-label={`Wishlist with ${wishlist.length} items`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+                {wishlist.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-scale-in">
+                    {wishlist.length > 99 ? '99+' : wishlist.length}
                   </span>
                 )}
               </Link>

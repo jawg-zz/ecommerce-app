@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ProductCard } from '@/components/ProductCard'
+import { RecentlyViewed } from '@/components/RecentlyViewed'
 
 interface Product {
   id: string
@@ -302,6 +303,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <RecentlyViewed />
 
       <section className="py-16 md:py-20 bg-slate-900 text-white overflow-hidden">
         <div className="container-custom">

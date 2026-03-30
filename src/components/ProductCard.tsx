@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useApp } from './Providers'
-import { useToast } from './Toast'
 import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
+import toast from 'react-hot-toast'
 
 interface Product {
   id: string
@@ -22,19 +22,21 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { setCart } = useApp()
-  const { showToast } = useToast()
+  const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed } = useApp()
   const [loading, setLoading] = useState(false)
   const [added, setAdded] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [wishlistLoading, setWishlistLoading] = useState(false)
+  const [wishlistAnimating, setWishlistAnimating] = useState(false)
+  const inWishlist = isInWishlist(product.id)
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
     if (product.stock === 0) {
-      showToast('This item is currently out of stock', 'error')
+      toast.error('This item is currently out of stock')
       return
     }
 
@@ -51,27 +53,50 @@ export function ProductCard({ product }: ProductCardProps) {
 
       if (!res.ok) {
         if (data.error?.includes('stock') || data.error?.includes('available')) {
-          showToast(`Not enough stock available. Only ${data.available} items in stock.`, 'error')
+          toast.error(`Not enough stock available. Only ${data.available} items in stock.`)
         } else {
-          showToast(data.error || 'Failed to add to cart', 'error')
+          toast.error(data.error || 'Failed to add to cart')
         }
         return
       }
 
       setCart(data)
       setAdded(true)
-      showToast(`${product.name} added to cart!`, 'success')
+      toast.success(`${product.name} added to cart!`)
       
       setTimeout(() => setAdded(false), 2000)
     } catch (err) {
       if (isNetworkError(err)) {
-        showToast('Unable to connect. Please check your internet connection.', 'error')
+        toast.error('Unable to connect. Please check your internet connection.')
       } else {
-        showToast('Failed to add to cart. Please try again.', 'error')
+        toast.error('Failed to add to cart. Please try again.')
       }
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleWishlistToggle = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    setWishlistLoading(true)
+    
+    if (inWishlist) {
+      removeFromWishlist(product.id)
+    } else {
+      addToWishlist({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        category: product.category,
+      })
+      setWishlistAnimating(true)
+      setTimeout(() => setWishlistAnimating(false), 600)
+    }
+    
+    setWishlistLoading(false)
   }
 
   const categoryColors: Record<string, { bg: string; text: string }> = {
@@ -120,6 +145,27 @@ export function ProductCard({ product }: ProductCardProps) {
         <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${colors.bg} ${colors.text} shadow-sm`}>
           {product.category}
         </span>
+
+        <button
+          onClick={handleWishlistToggle}
+          disabled={wishlistLoading}
+          className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 shadow-md ${
+            inWishlist 
+              ? 'bg-red-500 text-white hover:bg-red-600' 
+              : 'bg-white text-slate-400 hover:text-red-500 hover:bg-red-50'
+          } ${wishlistAnimating ? 'animate-scale' : ''}`}
+          aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+        >
+          <svg 
+            className="w-4 h-4" 
+            fill={inWishlist ? 'currentColor' : 'none'} 
+            viewBox="0 0 24 24" 
+            stroke="currentColor" 
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </button>
 
         {product.stock === 0 && (
           <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-[1px]">

@@ -4,8 +4,8 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useApp } from '@/components/Providers'
-import { useToast } from '@/components/Toast'
 import { validateEmail, validatePassword, getPasswordStrength, isNetworkError } from '@/lib/validation'
+import toast from 'react-hot-toast'
 
 interface FormErrors {
   name?: string
@@ -107,7 +107,6 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setUser, refreshCart } = useApp()
-  const { showToast } = useToast()
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -230,7 +229,7 @@ function LoginForm() {
 
       setUser(data)
       await refreshCart()
-      showToast(isLogin ? 'Welcome back!' : 'Account created successfully!', 'success')
+      toast.success(isLogin ? 'Welcome back!' : 'Account created successfully!')
       const returnUrl = searchParams.get('returnUrl')
       router.push(returnUrl || '/')
       router.refresh()
