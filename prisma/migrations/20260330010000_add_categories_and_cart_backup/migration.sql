@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "Category" (
+CREATE TABLE "ProductCollection" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE "Category" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ProductCollection_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -22,7 +22,7 @@ CREATE TABLE "CartBackup" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
+CREATE UNIQUE INDEX "ProductCollection_slug_key" ON "Category"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CartBackup_userId_key" ON "CartBackup"("userId");
@@ -34,4 +34,4 @@ ALTER TABLE "Product" ADD COLUMN "categoryId" TEXT;
 CREATE INDEX "Product_categoryId_idx" ON "Product"("categoryId");
 
 -- AddForeignKey
-ALTER TABLE "Product" ADD CONSTRAINT "Product_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Product" ADD CONSTRAINT "Product_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ProductCollection"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -26,7 +26,7 @@ model Product {
   price       Int
   category    String?
   categoryId  String?
-  categoryRef Category?   @relation(fields: [categoryId], references: [id])
+  categoryRef ProductCollection?   @relation(fields: [categoryId], references: [id])
   image       String?
   stock       Int         @default(0)
   orderItems  OrderItem[]
@@ -76,7 +76,7 @@ enum Role {
   ADMIN
 }
 
-model Category {
+model ProductCollection {
   id          String     @id @default(uuid())
   name        String
   slug        String     @unique
