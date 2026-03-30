@@ -71,7 +71,7 @@ export default function HomePage() {
       fetch('/api/categories').then(r => r.json())
     ]).then(([productsData, categoriesData]) => {
       setProducts(productsData.products || [])
-      setCategories(categoriesData || [])
+      setCategories(categoriesData.categories || [])
       setLoading(false)
     }).catch(() => {
       setLoading(false)

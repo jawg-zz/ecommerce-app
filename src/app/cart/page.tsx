@@ -146,7 +146,8 @@ export default function CartPage() {
 
       if (!res.ok) {
         if (data.error?.includes('stock') || data.error?.includes('available')) {
-          toast.error(`Not enough stock. Only ${data.available} available.`)
+          const stockMatch = data.error.match(/(\d+)/)
+          toast.error(`Not enough stock. Only ${stockMatch ? stockMatch[0] : 'requested'} available.`)
         } else {
           toast.error(data.error || 'Failed to update quantity')
         }

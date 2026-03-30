@@ -107,27 +107,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
       }
 
-      await prisma.$transaction(async (tx) => {
-        const orderWithItems = await tx.order.update({
-          where: { id: order.id },
-          data: {
-            status: 'PAID',
-            mpesaCheckoutRequestId: CheckoutRequestID,
-            reference: mpesaReceiptNumber,
-          },
-          include: { items: true },
-        })
-
-        if (orderWithItems && orderWithItems.items.length > 0) {
-          await Promise.all(
-            orderWithItems.items.map(item =>
-              tx.product.update({
-                where: { id: item.productId },
-                data: { stock: { decrement: item.quantity } },
-              })
-            )
-          )
-        }
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: 'PAID',
+          mpesaCheckoutRequestId: CheckoutRequestID,
+          reference: mpesaReceiptNumber,
+        },
       })
 
       logInfo('Payment successful', {

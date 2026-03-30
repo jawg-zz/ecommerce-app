@@ -38,8 +38,8 @@ function ProductsContent() {
 
       const res = await fetch(`/api/products?${params}`)
       const data = await res.json()
-      setProducts(data.products)
-      setTotal(data.total)
+      setProducts(data.products || [])
+      setTotal(data.total || 0)
       setLoading(false)
     }
 

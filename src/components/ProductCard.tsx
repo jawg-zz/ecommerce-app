@@ -53,7 +53,8 @@ export function ProductCard({ product }: ProductCardProps) {
 
       if (!res.ok) {
         if (data.error?.includes('stock') || data.error?.includes('available')) {
-          toast.error(`Not enough stock available. Only ${data.available} items in stock.`)
+          const stockMatch = data.error.match(/Only (\d+) items? available/)
+          toast.error(`Not enough stock available.${stockMatch ? ` Only ${stockMatch[1]} items in stock.` : ''}`)
         } else {
           toast.error(data.error || 'Failed to add to cart')
         }
