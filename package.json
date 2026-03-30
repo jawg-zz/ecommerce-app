@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "cron": "node dist/cron.js",
-    "cron:build": "tsc src/cron.ts --outDir dist --module commonjs --target es2020 --esModuleInterop --resolveJsonModule --skipLibCheck",
+    "cron:build": "tsc --project tsconfig.cron.json",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

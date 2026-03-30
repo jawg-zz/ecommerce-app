@@ -19,7 +19,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Compile cron script
-RUN npx tsc src/cron.ts --outDir dist --module commonjs --target es2020 --esModuleInterop --resolveJsonModule --skipLibCheck --moduleResolution node --ignoreConfig
+RUN npm run cron:build
 
 FROM base AS runner
 WORKDIR /app
