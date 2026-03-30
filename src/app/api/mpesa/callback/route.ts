@@ -7,6 +7,17 @@ import { logInfo, logError } from '@/lib/logger'
  * Safaricom sends payment results here
  */
 export async function POST(request: NextRequest) {
+  // Verify callback authenticity
+  const callbackSecret = process.env.MPESA_CALLBACK_SECRET
+  const authHeader = request.headers.get('authorization')
+  
+  if (callbackSecret && authHeader !== `Bearer ${callbackSecret}`) {
+    logError('Unauthorized M-Pesa callback attempt', {
+      ip: request.headers.get('x-forwarded-for') || 'unknown'
+    })
+    return NextResponse.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
 

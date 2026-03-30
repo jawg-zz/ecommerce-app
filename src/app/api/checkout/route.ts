@@ -5,6 +5,7 @@ import { getCart, clearCart } from '@/lib/cart'
 import { prisma } from '@/lib/prisma'
 import { initiateSTKPush, querySTKStatus } from '@/lib/mpesa'
 import { logError } from '@/lib/logger'
+import { checkoutRateLimiter } from '@/lib/ratelimit'
 
 const checkoutSchema = z.object({
   phoneNumber: z.string().regex(/^(254[17]\d{8}|0[17]\d{8})$/, 'Invalid phone number format (use 0712345678 or 254712345678)'),
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Rate limit checkout attempts
+  const { success } = await checkoutRateLimiter.limit(user.id)
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too many checkout attempts. Please wait a moment.' },
+      { status: 429 }
+    )
+  }
+
   try {
     const body = await request.json()
     const { phoneNumber, shippingAddress } = checkoutSchema.parse(body)
@@ -36,23 +46,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
     }
 
-    // Stock reservation flow:
-    // 1. Transaction checks stock atomically (line 40-48) - acquires row lock on products
-    // 2. Pending order is created (line 51-66) - no actual stock decrement yet
-    // 3. Stock is decremented AFTER payment confirmation (GET handler lines 154-160)
-    // This prevents overselling while keeping pending orders reversible
+    // Stock reservation with row-level locking to prevent race conditions
     const order = await prisma.$transaction(async (tx) => {
+      // Use FOR UPDATE to lock rows and prevent concurrent checkouts
       for (const item of cart.items) {
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-        })
+        const product = await tx.$queryRaw<Array<{ id: string; stock: number }>>`
+          SELECT id, stock FROM "Product" WHERE id = ${item.productId} FOR UPDATE
+        `
         
-        if (!product || product.stock < item.quantity) {
+        if (!product[0] || product[0].stock < item.quantity) {
           throw new Error(`Insufficient stock for ${item.product.name}`)
         }
       }
       
-      return await tx.order.create({
+      const newOrder = await tx.order.create({
         data: {
           userId: user.id,
           status: 'PENDING',

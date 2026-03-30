@@ -74,6 +74,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Verify cron secret for automated calls
+  const cronSecret = process.env.CRON_SECRET
+  const authHeader = request.headers.get('x-cron-secret')
+  
+  if (cronSecret && authHeader !== cronSecret) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const { action } = await request.json()
 
