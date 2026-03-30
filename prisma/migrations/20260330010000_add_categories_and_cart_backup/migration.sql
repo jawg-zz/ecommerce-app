@@ -22,7 +22,7 @@ CREATE TABLE "CartBackup" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ProductCollection_slug_key" ON "Category"("slug");
+CREATE UNIQUE INDEX "ProductCollection_slug_key" ON "ProductCollection"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CartBackup_userId_key" ON "CartBackup"("userId");
