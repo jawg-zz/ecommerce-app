@@ -137,7 +137,7 @@ type EnvKey = keyof EnvData
 export function requireEnv(name: EnvKey): string {
   const value = env[name as keyof typeof env]
   if (!value) {
-    throw new Error(`${name} environment variable is required`)
+    throw new Error(`${String(name)} environment variable is required`)
   }
   return value as string
 }
