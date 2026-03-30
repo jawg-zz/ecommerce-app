@@ -76,10 +76,13 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     restart: unless-stopped
     networks:
       - dokploy-network

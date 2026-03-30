@@ -2,15 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logError } from '@/lib/logger'
+import DOMPurify from 'isomorphic-dompurify'
+
+const ALLOWED_IMAGE_DOMAINS = ['images.unsplash.com', 'via.placeholder.com', 'res.cloudinary.com', 'cdn.shopify.com']
+
+const imageUrlSchema = z.string()
+  .url()
+  .optional()
+  .refine((url) => {
+    if (!url) return true
+    try {
+      const parsed = new URL(url)
+      return ALLOWED_IMAGE_DOMAINS.some(domain => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`))
+    } catch {
+      return false
+    }
+  }, { message: 'Image URL must be from allowed domains' })
 
 const productSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   price: z.number().positive(),
   category: z.enum(['ELECTRONICS', 'CLOTHING', 'BOOKS']),
-  image: z.string().url().optional(),
+  image: imageUrlSchema,
   stock: z.number().int().min(0).default(0),
-})
+}).transform(data => ({
+  ...data,
+  description: data.description ? DOMPurify.sanitize(data.description) : undefined,
+}))
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
@@ -74,7 +94,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('Create product error:', error)
+    logError('Create product error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to create product. Please try again.' },
       { status: 500 }

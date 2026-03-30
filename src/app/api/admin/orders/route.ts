@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { OrderStatus } from '@prisma/client'
 
 const updateOrderSchema = z.object({
   status: z.enum(['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']),
 })
+
+const orderStatuses: OrderStatus[] = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
@@ -16,10 +19,12 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '20')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
   const status = searchParams.get('status')
 
-  const where = status ? { status: status as any } : {}
+  const where = status && orderStatuses.includes(status as OrderStatus) 
+    ? { status: status as OrderStatus } 
+    : {}
 
   const [orders, total] = await Promise.all([
     prisma.order.findMany({

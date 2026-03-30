@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { productRateLimiter } from '@/lib/ratelimit'
 
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+    || request.headers.get('x-real-ip')
+    || 'unknown'
+  
+  const { success } = await productRateLimiter.limit(ip)
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    )
+  }
+
   const { searchParams } = new URL(request.url)
 
   const page = parseInt(searchParams.get('page') || '1')

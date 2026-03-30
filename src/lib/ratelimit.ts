@@ -8,6 +8,36 @@ interface RateLimitResult {
   pending: Promise<unknown>
 }
 
+const RATE_LIMIT_SCRIPT = `
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local maxRequests = tonumber(ARGV[3])
+local random = ARGV[4]
+
+local windowStart = now - window
+
+redis.call('ZREMRANGEBYSCORE', key, 0, windowStart)
+
+local count = redis.call('ZCARD', key)
+
+if count >= maxRequests then
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  local resetTime = 0
+  if #oldest > 1 then
+    resetTime = tonumber(oldest[2]) + window
+  else
+    resetTime = now + window
+  end
+  return {0, count, resetTime}
+end
+
+redis.call('ZADD', key, now, random)
+redis.call('EXPIRE', key, math.ceil(window / 1000))
+
+return {1, count + 1, now + window}
+`
+
 class SimpleRateLimiter {
   private prefix: string
   private maxRequests: number
@@ -22,44 +52,39 @@ class SimpleRateLimiter {
   async limit(identifier: string): Promise<RateLimitResult> {
     const key = `${this.prefix}:${identifier}`
     const now = Date.now()
-    const windowStart = now - this.windowMs
+    const random = `${now}:${Math.random()}`
 
     try {
-      // Remove old entries outside the window
-      await redis.zremrangebyscore(key, 0, windowStart)
+      const result = await redis.eval(
+        RATE_LIMIT_SCRIPT,
+        1,
+        key,
+        now,
+        this.windowMs,
+        this.maxRequests,
+        random
+      ) as [number, number, number]
 
-      // Count requests in current window
-      const count = await redis.zcard(key)
+      const [success, count, reset] = result
 
-      if (count >= this.maxRequests) {
-        // Get the oldest entry to calculate reset time
-        const oldest = await redis.zrange(key, 0, 0, 'WITHSCORES')
-        const resetTime = oldest.length > 1 ? parseInt(oldest[1]) + this.windowMs : now + this.windowMs
-
+      if (success === 0) {
         return {
           success: false,
           limit: this.maxRequests,
           remaining: 0,
-          reset: resetTime,
+          reset,
           pending: Promise.resolve(),
         }
       }
 
-      // Add current request with atomic ZADD + EXPIRE using pipeline
-      const pipeline = redis.pipeline()
-      pipeline.zadd(key, now, `${now}:${Math.random()}`)
-      pipeline.expire(key, Math.ceil(this.windowMs / 1000))
-      await pipeline.exec()
-
       return {
         success: true,
         limit: this.maxRequests,
-        remaining: this.maxRequests - count - 1,
-        reset: now + this.windowMs,
+        remaining: this.maxRequests - count,
+        reset,
         pending: Promise.resolve(),
       }
     } catch (error) {
-      // On Redis error, allow the request (fail open)
       console.error('[RateLimit] Redis error:', error)
       return {
         success: true,
@@ -85,5 +110,13 @@ export const authRateLimiter = new SimpleRateLimiter(
 export const checkoutRateLimiter = new SimpleRateLimiter(
   'ratelimit:checkout',
   5,
+  60 * 1000 // 1 minute
+)
+
+// Rate limiter for product endpoints
+// 60 requests per minute per IP
+export const productRateLimiter = new SimpleRateLimiter(
+  'ratelimit:products',
+  60,
   60 * 1000 // 1 minute
 )

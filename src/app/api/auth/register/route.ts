@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, createToken, setAuthCookie } from '@/lib/auth'
 import { authRateLimiter } from '@/lib/ratelimit'
+import { logError } from '@/lib/logger'
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('Register error:', error)
+    logError('Register error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Registration failed. Please try again.' },
       { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { redis } from '@/lib/redis'
 import { cleanupStaleOrders } from '@/lib/cron/cleanup-stale-orders'
+import { logError } from '@/lib/logger'
 
 interface CronJob {
   id: string
@@ -25,18 +26,27 @@ const CRON_JOBS: CronJob[] = [
   },
 ]
 
-export async function GET() {
+async function verifyCronAuth(request: NextRequest): Promise<boolean> {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) return false
+  
+  const authHeader = request.headers.get('x-cron-secret')
+  return authHeader === cronSecret
+}
+
+export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
+  const isCronAuth = await verifyCronAuth(request)
 
   if (!user || user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!isCronAuth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   try {
-    // Fetch job status and history from Redis
     const jobs = []
     
-    // Cleanup stale orders job
     const jobId = 'cleanup-stale-orders'
     const status = await redis.get(`cron:status:${jobId}`)
     const lastRun = await redis.get(`cron:last_run:${jobId}`)
@@ -53,13 +63,12 @@ export async function GET() {
       result: result || undefined,
     })
 
-    // Fetch history
     const historyItems = await redis.lrange('cron:history:cleanup-stale-orders', 0, 9)
     const history = historyItems.map(item => JSON.parse(item))
 
     return NextResponse.json({ jobs, history })
   } catch (error) {
-    console.error('Error fetching cron status:', error)
+    logError('Error fetching cron status:', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to fetch cron status' },
       { status: 500 }
@@ -69,17 +78,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser()
+  const isCronAuth = await verifyCronAuth(request)
 
   if (!user || user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Verify cron secret for automated calls
-  const cronSecret = process.env.CRON_SECRET
-  const authHeader = request.headers.get('x-cron-secret')
-  
-  if (cronSecret && authHeader !== cronSecret) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!isCronAuth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   try {
@@ -146,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (error) {
-    console.error('Error executing cron job:', error)
+    logError('Error executing cron job:', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to execute cron job' },
       { status: 500 }

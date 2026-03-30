@@ -1,15 +1,9 @@
 /**
  * M-Pesa Daraja API Integration
  * Docs: https://developer.safaricom.co.ke/Documentation
- * 
- * Environment Variables:
- * - MPESA_ENV: 'sandbox' | 'production' (default: sandbox)
- * - MPESA_CONSUMER_KEY: M-Pesa API consumer key (required)
- * - MPESA_CONSUMER_SECRET: M-Pesa API consumer secret (required)
- * - MPESA_SHORTCODE: Business shortcode (required)
- * - MPESA_PASSKEY: M-Pesa passkey for STK Push (required)
- * - MPESA_CALLBACK_URL: Callback URL for STK Push (required)
  */
+
+import { env, getValidatedEnv } from './env'
 
 interface AccessTokenResponse {
   access_token: string
@@ -52,7 +46,7 @@ interface TokenCache {
   expiresAt: number
 }
 
-const MPESA_BASE_URL = process.env.MPESA_ENV === 'production'
+const MPESA_BASE_URL = env.MPESA_ENV === 'production'
   ? 'https://api.safaricom.co.ke'
   : 'https://sandbox.safaricom.co.ke'
 
@@ -60,18 +54,11 @@ const TOKEN_BUFFER_MS = 5 * 60 * 1000
 
 let tokenCache: TokenCache | null = null
 
-const REQUIRED_ENV_VARS = [
-  'MPESA_CONSUMER_KEY',
-  'MPESA_CONSUMER_SECRET',
-  'MPESA_SHORTCODE',
-  'MPESA_PASSKEY',
-  'MPESA_CALLBACK_URL',
-]
-
 function validateEnvVars(): void {
-  const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v])
-  if (missing.length > 0) {
-    throw new Error(`Missing required M-Pesa environment variables: ${missing.join(', ')}`)
+  const validated = getValidatedEnv()
+  if (!validated.MPESA_CONSUMER_KEY || !validated.MPESA_CONSUMER_SECRET || 
+      !validated.MPESA_SHORTCODE || !validated.MPESA_PASSKEY || !validated.MPESA_CALLBACK_URL) {
+    throw new Error('Missing required M-Pesa environment variables')
   }
 }
 
@@ -176,7 +163,7 @@ async function getAccessToken(): Promise<string> {
   }
 
   const auth = Buffer.from(
-    `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
+    `${env.MPESA_CONSUMER_KEY}:${env.MPESA_CONSUMER_SECRET}`
   ).toString('base64')
 
   const endpoint = `${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`
@@ -204,7 +191,7 @@ async function getAccessToken(): Promise<string> {
 function generatePassword(): { password: string; timestamp: string } {
   const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)
   const password = Buffer.from(
-    `${process.env.MPESA_SHORTCODE}${process.env.MPESA_PASSKEY}${timestamp}`
+    `${env.MPESA_SHORTCODE}${env.MPESA_PASSKEY}${timestamp}`
   ).toString('base64')
   return { password, timestamp }
 }
@@ -226,15 +213,15 @@ export async function initiateSTKPush(
     : `254${phoneNumber}`
 
   const payload = {
-    BusinessShortCode: process.env.MPESA_SHORTCODE,
+    BusinessShortCode: env.MPESA_SHORTCODE,
     Password: password,
     Timestamp: timestamp,
     TransactionType: 'CustomerPayBillOnline',
     Amount: Math.round(amount),
     PartyA: formattedPhone,
-    PartyB: process.env.MPESA_SHORTCODE,
+    PartyB: env.MPESA_SHORTCODE,
     PhoneNumber: formattedPhone,
-    CallBackURL: process.env.MPESA_CALLBACK_URL,
+    CallBackURL: env.MPESA_CALLBACK_URL,
     AccountReference: reference,
     TransactionDesc: `Payment for order ${reference}`,
   }
@@ -282,7 +269,7 @@ export async function querySTKStatus(checkoutRequestId: string): Promise<{
   const { password, timestamp } = generatePassword()
 
   const payload = {
-    BusinessShortCode: process.env.MPESA_SHORTCODE,
+    BusinessShortCode: env.MPESA_SHORTCODE,
     Password: password,
     Timestamp: timestamp,
     CheckoutRequestID: checkoutRequestId,

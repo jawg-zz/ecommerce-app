@@ -48,15 +48,21 @@ export async function POST(request: NextRequest) {
 
     // Stock reservation with row-level locking to prevent race conditions
     const order = await prisma.$transaction(async (tx) => {
-      // Use FOR UPDATE to lock rows and prevent concurrent checkouts
       for (const item of cart.items) {
-        const product = await tx.$queryRaw<Array<{ id: string; stock: number }>>`
-          SELECT id, stock FROM "Product" WHERE id = ${item.productId} FOR UPDATE
+        // Use FOR UPDATE to lock the row and prevent concurrent checkouts
+        const [product] = await tx.$queryRaw<Array<{ id: string; name: string; stock: number }>>`
+          SELECT id, name, stock FROM "Product" WHERE id = ${item.productId} FOR UPDATE
         `
         
-        if (!product[0] || product[0].stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${item.product.name}`)
+        if (!product || product.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${product?.name || 'product'}`)
         }
+        
+        // Decrement stock immediately to reserve it
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        })
       }
       
       const newOrder = await tx.order.create({
@@ -74,6 +80,8 @@ export async function POST(request: NextRequest) {
           },
         },
       })
+      
+      return newOrder
     })
 
     // Initiate M-Pesa STK Push
@@ -83,10 +91,12 @@ export async function POST(request: NextRequest) {
       order.id
     )
 
-    // Store checkoutRequestId in order for tracking
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { mpesaCheckoutRequestId: checkoutRequestId },
+    // Update checkoutRequestId in same transaction to ensure consistency
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: order.id },
+        data: { mpesaCheckoutRequestId: checkoutRequestId },
+      })
     })
 
     return NextResponse.json({
@@ -148,7 +158,7 @@ export async function GET(request: NextRequest) {
     const paymentStatus = await querySTKStatus(order.mpesaCheckoutRequestId)
 
     if (paymentStatus.status === 'success') {
-      // Update order and reduce stock atomically in transaction
+      // Update order status - stock was already reserved during checkout
       const updatedOrder = await prisma.$transaction(async (tx) => {
         const order = await tx.order.update({
           where: { id: orderId },
@@ -158,14 +168,6 @@ export async function GET(request: NextRequest) {
           },
         })
 
-        // Reduce stock atomically
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          })
-        }
-
         return order
       })
 
@@ -173,6 +175,25 @@ export async function GET(request: NextRequest) {
       await clearCart(user.id)
 
       return NextResponse.json({ status: 'success', order: updatedOrder })
+    }
+
+    // If payment failed, restore the reserved stock
+    if (paymentStatus.status === 'failed') {
+      await prisma.$transaction(async (tx) => {
+        const order = await tx.order.update({
+          where: { id: orderId },
+          data: { status: 'CANCELLED' },
+          include: { items: true },
+        })
+
+        // Restore stock for each item
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+      })
     }
 
     return NextResponse.json({ 

@@ -30,5 +30,9 @@ export async function GET() {
 
   return NextResponse.json(health, {
     status: health.status === 'ok' ? 200 : 503,
+    headers: {
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+    },
   })
 }

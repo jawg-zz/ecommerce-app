@@ -34,7 +34,7 @@ export function verifyToken(token: string): JWTPayload | null {
 
 export async function getCurrentUser() {
   const cookieStore = await cookies()
-  const token = cookieStore.get('auth-token')?.value
+  const token = cookieStore.get('__Host-auth-token')?.value
 
   if (!token) return null
 
@@ -56,18 +56,18 @@ export async function getCurrentUser() {
 
 export async function setAuthCookie(token: string) {
   const c = await cookies()
-  c.set('auth-token', token, {
+  c.set('__Host-auth-token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 7,
     path: '/',
   })
 }
 
 export async function removeAuthCookie() {
   const c = await cookies()
-  c.set('auth-token', '', {
+  c.set('__Host-auth-token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

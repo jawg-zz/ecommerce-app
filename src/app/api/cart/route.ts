@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { getCart, addToCart, updateCartItem, clearCart } from '@/lib/cart'
+import { prisma } from '@/lib/prisma'
+import { logError } from '@/lib/logger'
 
 const addToCartSchema = z.object({
   productId: z.string().uuid(),
@@ -35,6 +37,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { productId, quantity } = addToCartSchema.parse(body)
 
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+    })
+
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
+
+    if (product.stock < quantity) {
+      return NextResponse.json(
+        { error: `Only ${product.stock} items available` },
+        { status: 400 }
+      )
+    }
+
     await addToCart(user.id, productId, quantity)
     const cart = await getCart(user.id)
 
@@ -46,7 +63,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('Add to cart error:', error)
+    logError('Add to cart error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to add item to cart. Please try again.' },
       { status: 500 }
@@ -65,6 +82,23 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { productId, quantity } = updateCartSchema.parse(body)
 
+    if (quantity > 0) {
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+      })
+
+      if (!product) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      }
+
+      if (product.stock < quantity) {
+        return NextResponse.json(
+          { error: `Only ${product.stock} items available` },
+          { status: 400 }
+        )
+      }
+    }
+
     await updateCartItem(user.id, productId, quantity)
     const cart = await getCart(user.id)
 
@@ -76,7 +110,7 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('Update cart error:', error)
+    logError('Update cart error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to update cart. Please try again.' },
       { status: 500 }

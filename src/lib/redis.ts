@@ -1,22 +1,45 @@
 import Redis from 'ioredis'
+import { env } from './env'
 
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined
 }
 
 function createRedis() {
-  return new Redis({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    password: process.env.REDIS_PASSWORD,
+  const redisInstance = new Redis({
+    host: env.REDIS_HOST || 'localhost',
+    port: parseInt(env.REDIS_PORT || '6379'),
+    password: env.REDIS_PASSWORD || undefined,
     retryStrategy: (times) => {
       if (times > 3) return null
       return Math.min(times * 100, 3000)
     },
-    lazyConnect: true,
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    lazyConnect: false,
   })
+
+  redisInstance.on('error', (err) => {
+    console.error('[Redis] Connection error:', err)
+  })
+
+  redisInstance.on('connect', () => {
+    console.log('[Redis] Connected')
+  })
+
+  redisInstance.on('ready', () => {
+    console.log('[Redis] Ready')
+  })
+
+  return redisInstance
 }
 
 export const redis = globalForRedis.redis ?? createRedis()
 
 if (process.env.NODE_ENV !== 'production') globalForRedis.redis = redis
+
+export async function connectRedis() {
+  if (redis.status === 'wait') {
+    await redis.connect()
+  }
+}

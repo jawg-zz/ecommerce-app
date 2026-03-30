@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { verifyPassword, createToken, setAuthCookie } from '@/lib/auth'
 import { authRateLimiter } from '@/lib/ratelimit'
+import { logError } from '@/lib/logger'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('Login error:', error)
+    logError('Login error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Login failed. Please try again.' },
       { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logError } from '@/lib/logger'
 
 const updateOrderSchema = z.object({
   status: z.enum(['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']),
@@ -68,7 +69,7 @@ export async function PUT(
         { status: 400 }
       )
     }
-    console.error('Update order error:', error)
+    logError('Update order error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
