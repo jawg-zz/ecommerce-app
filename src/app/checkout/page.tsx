@@ -237,7 +237,8 @@ function CheckoutPageContent() {
       try {
         const res = await fetch('/api/orders')
         if (res.ok) {
-          const orders = await res.json()
+          const data = await res.json()
+          const orders = data.orders || []
           const addresses: SavedAddress[] = []
           const seen = new Set<string>()
           orders.forEach((order: { shippingAddress: ShippingAddress | null }) => {
