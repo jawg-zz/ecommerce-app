@@ -45,17 +45,8 @@ export async function POST(request: NextRequest) {
     || request.headers.get('cf-connecting-ip')
     || null
 
-  const callbackSecret = process.env.MPESA_CALLBACK_SECRET
-  const authHeader = request.headers.get('authorization')
-  
-  if (callbackSecret && authHeader !== `Bearer ${callbackSecret}`) {
-    logError('Unauthorized M-Pesa callback - invalid secret', {
-      ip: clientIP || 'unknown'
-    })
-    return NextResponse.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
-  }
-
-  const ipWhitelistEnabled = process.env.MPESA_IP_WHITELIST === 'true'
+  // IP whitelist validation (enabled by default for security)
+  const ipWhitelistEnabled = process.env.MPESA_IP_WHITELIST !== 'false'
   if (ipWhitelistEnabled && !isAllowedIP(clientIP)) {
     logError('Unauthorized M-Pesa callback - IP not allowed', {
       ip: clientIP || 'unknown'
