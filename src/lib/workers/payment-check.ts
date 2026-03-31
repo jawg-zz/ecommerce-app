@@ -52,11 +52,13 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
 
       await clearCart(order.userId)
 
+      console.log('[Worker] Publishing to Redis for orderId:', orderId)
       await redis.publish(`payment-status:${orderId}`, JSON.stringify({
         status: 'success',
         orderId,
         message: 'Payment confirmed',
       }))
+      console.log('[Worker] Redis publish complete')
 
       logInfo('Order updated to PAID via job', { orderId })
     } else if (paymentStatus.status === 'failed') {
@@ -78,11 +80,13 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
 
       await clearCart(order.userId)
 
+      console.log('[Worker] Publishing to Redis for orderId:', orderId)
       await redis.publish(`payment-status:${orderId}`, JSON.stringify({
         status: 'cancelled',
         orderId,
         message: 'Payment status updated',
       }))
+      console.log('[Worker] Redis publish complete')
 
       logInfo('Order cancelled and stock restored via job', { orderId })
     } else {

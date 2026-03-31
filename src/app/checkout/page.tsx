@@ -277,10 +277,12 @@ function CheckoutPageContent() {
     const orderId = retryDataRef.current.orderId
 
     const connectSSE = () => {
+      console.log('[Checkout] Opening SSE connection for orderId:', orderId)
       const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
       eventSourceRef.current = eventSource
 
       eventSource.onmessage = (event) => {
+        console.log('[Checkout] SSE message received:', event.data)
         try {
           const data = JSON.parse(event.data)
 
@@ -288,6 +290,7 @@ function CheckoutPageContent() {
 
           if (data.status === 'success') {
             eventSource.close()
+            console.log('[Checkout] Redirecting to confirmation page')
             router.push(`/order-confirmation?orderId=${orderId}`)
           } else if (data.status === 'cancelled' || data.status === 'failed') {
             setError(data.message || 'Payment failed. Please try again.')
@@ -306,7 +309,7 @@ function CheckoutPageContent() {
 
       eventSource.onerror = () => {
         eventSource.close()
-        console.error('SSE connection error, falling back to manual check')
+        console.error('[Checkout] SSE error: connection error, falling back to manual check')
       }
     }
 
@@ -481,6 +484,7 @@ function CheckoutPageContent() {
 
       setCheckoutRequestId(data.checkoutRequestId)
       setPaymentPhone(phoneNumber)
+      console.log('[Checkout] Moving to payment step')
       setCurrentStep('payment')
       setPaymentStage('waiting')
 
@@ -490,6 +494,7 @@ function CheckoutPageContent() {
         return
       }
 
+      console.log('[Checkout] STK push success, orderId:', data.orderId)
       retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
     } catch (err) {
       if (isNetworkError(err)) {

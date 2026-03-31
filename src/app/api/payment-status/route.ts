@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         if (aborted) return
         aborted = true
 
+        console.log('[SSE] Cleaning up connection for orderId:', orderId)
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval)
           heartbeatInterval = null
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
             console.error('[SSE] Redis subscriber error:', err)
           })
 
+          console.log('[SSE] Subscribed to channel: payment-status:' + orderId)
           await subscriber.subscribe(`payment-status:${orderId}`)
 
           subscriber.on('message', async (channel: string, message: string) => {
@@ -84,12 +86,14 @@ export async function GET(request: NextRequest) {
             if (channel !== `payment-status:${orderId}`) return
 
             try {
+              console.log('[SSE] Redis message received:', message)
               const data = JSON.parse(message)
+              console.log('[SSE] Sending event to frontend:', data)
               controller.enqueue(encoder.encode(sendSSEMessage(data)))
               controller.close()
               await cleanup()
             } catch (e) {
-              console.error('[SSE] Failed to parse Redis message:', e)
+              console.error('[SSE] Error parsing message:', e)
             }
           })
         } catch (e) {
@@ -107,6 +111,7 @@ export async function GET(request: NextRequest) {
 
       startHeartbeat()
       startTimeout()
+      console.log('[SSE] Connection opened for orderId:', orderId)
       connect()
 
       request.signal.addEventListener('abort', async () => {

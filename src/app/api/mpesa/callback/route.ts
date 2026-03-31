@@ -133,11 +133,13 @@ export async function POST(request: NextRequest) {
 
       await cancelPaymentCheck(order.id)
 
+      console.log('[Callback] Publishing to Redis channel: payment-status:' + order.id + ' data:', { status: 'success', orderId: order.id, message: 'Payment confirmed' })
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({
         status: 'success',
         orderId: order.id,
         message: 'Payment confirmed',
-      }))
+      })).catch(err => console.error('[Callback] Redis publish failed:', err))
+      console.log('[Callback] Redis publish complete')
 
       logInfo('ORDER CONFIRMATION - Payment successful', {
         orderId: order.id,
@@ -182,6 +184,7 @@ export async function POST(request: NextRequest) {
 
       await cancelPaymentCheck(order.id)
 
+      console.log('[Callback] Publishing to Redis channel: payment-status:' + order.id + ' data:', { status: 'cancelled', orderId: order.id, message: 'Payment cancelled by user' })
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({
         status: 'cancelled',
         orderId: order.id,
