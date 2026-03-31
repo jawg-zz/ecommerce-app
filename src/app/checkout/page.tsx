@@ -211,6 +211,7 @@ function CheckoutPageContent() {
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     name: '',
@@ -269,31 +270,54 @@ function CheckoutPageContent() {
     }
   }, [currentStep])
 
-  // Poll for payment status and redirect on success
+  // Connect to SSE for real-time payment status updates
   useEffect(() => {
     if (currentStep !== 'payment' || !retryDataRef.current?.orderId) return
 
-    const checkPaymentStatus = async () => {
-      try {
-        const res = await fetch(`/api/checkout?orderId=${retryDataRef.current?.orderId}`)
-        const data = await res.json()
+    const orderId = retryDataRef.current.orderId
 
-        if (data.status === 'success' && data.order) {
-          router.push(`/order-confirmation?orderId=${retryDataRef.current?.orderId}`)
-        } else if (data.status === 'timeout' || data.status === 'cancelled') {
-          setError(data.message || 'Payment failed. Please try again.')
-          setCurrentStep('shipping')
-          refreshCart()
+    const connectSSE = () => {
+      const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
+      eventSourceRef.current = eventSource
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          if (data.type === 'heartbeat') return
+
+          if (data.status === 'success') {
+            eventSource.close()
+            router.push(`/order-confirmation?orderId=${orderId}`)
+          } else if (data.status === 'cancelled' || data.status === 'failed') {
+            setError(data.message || 'Payment failed. Please try again.')
+            setCurrentStep('shipping')
+            refreshCart()
+          } else if (data.status === 'timeout') {
+            setError(data.message || 'Payment timed out. Please try again.')
+            setCurrentStep('shipping')
+            refreshCart()
+          }
+          eventSource.close()
+        } catch (err) {
+          console.error('Failed to parse SSE message:', err)
         }
-      } catch (err) {
-        console.error('Payment status check failed:', err)
+      }
+
+      eventSource.onerror = () => {
+        eventSource.close()
+        console.error('SSE connection error, falling back to manual check')
       }
     }
 
-    const interval = setInterval(checkPaymentStatus, 3000)
-    checkPaymentStatus()
+    connectSSE()
 
-    return () => clearInterval(interval)
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+    }
   }, [currentStep, router, refreshCart])
 
   useEffect(() => {
