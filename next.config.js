@@ -1,16 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.placeholder.com',
-      },
-    ],
+    domains: ['images.unsplash.com', 'via.placeholder.com'],
   },
   experimental: {
     instrumentationHook: true,
