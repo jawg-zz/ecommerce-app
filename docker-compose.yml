@@ -18,6 +18,9 @@ services:
       - MPESA_CALLBACK_URL=${MPESA_CALLBACK_URL}
       - MPESA_IP_WHITELIST=${MPESA_IP_WHITELIST:-true}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://ecommerce.spidmax.win}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
