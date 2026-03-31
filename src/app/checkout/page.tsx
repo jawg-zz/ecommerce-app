@@ -16,8 +16,6 @@ import toast from 'react-hot-toast'
 
 type CheckoutStep = 'shipping' | 'payment' | 'confirmation'
 
-const PAYMENT_TIMEOUT_SECONDS = 120
-
 interface FormErrors {
   name?: string
   address?: string
@@ -200,7 +198,7 @@ function CheckoutPageContent() {
   const [phoneValid, setPhoneValid] = useState(false)
   const [checkoutRequestId, setCheckoutRequestId] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
-  const [timeRemaining, setTimeRemaining] = useState(PAYMENT_TIMEOUT_SECONDS)
+
   const [phoneError, setPhoneError] = useState('')
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -211,7 +209,6 @@ function CheckoutPageContent() {
   const [paymentPhone, setPaymentPhone] = useState('')
   const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'polling' | 'success'>('sending')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
@@ -270,10 +267,6 @@ function CheckoutPageContent() {
         clearTimeout(pollIntervalRef.current)
         pollIntervalRef.current = null
       }
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current)
-        timerIntervalRef.current = null
-      }
     }
   }, [])
 
@@ -287,11 +280,6 @@ function CheckoutPageContent() {
         clearTimeout(pollIntervalRef.current)
         pollIntervalRef.current = null
       }
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current)
-        timerIntervalRef.current = null
-      }
-      setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
     }
   }, [currentStep])
 
@@ -421,15 +409,8 @@ function CheckoutPageContent() {
     
     setCurrentStep('shipping')
     setError('')
-    setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
     refreshCart()
   }, [])
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   const handleRetry = async () => {
     if (retryDataRef.current?.orderId) {
@@ -471,7 +452,6 @@ function CheckoutPageContent() {
       setPaymentPhone(phoneNumber)
       setCurrentStep('payment')
       setPaymentStage('waiting')
-      setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
 
       if (!data.checkoutRequestId || !data.orderId) {
         setError('Invalid checkout response')
@@ -524,25 +504,11 @@ function CheckoutPageContent() {
 
   const pollPaymentStatus = async (checkoutId: string, orderId: string) => {
     const cleanup = () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current)
-        timerIntervalRef.current = null
-      }
       if (pollIntervalRef.current) {
         clearTimeout(pollIntervalRef.current)
         pollIntervalRef.current = null
       }
     }
-
-    timerIntervalRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          // Don't auto-cancel - let the callback or polling handle it
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
 
     const poll = async () => {
       if (cancelRef.current) {
@@ -738,17 +704,13 @@ function CheckoutPageContent() {
               )}
 
               <div className="bg-slate-100 rounded-xl p-5 mb-6">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between">
                   <div className="text-left">
                     <p className="text-sm text-slate-500">Amount</p>
                     <p className="text-2xl font-bold text-slate-700">KES {formatPrice(total).replace('KES', '').trim()}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-slate-500">Time remaining</p>
-                    <p className="text-2xl font-bold text-green-600">{formatTime(timeRemaining)}</p>
-                  </div>
                 </div>
-                <p className="text-xs text-slate-500 text-center">You have {formatTime(timeRemaining)} to complete payment on your phone</p>
+                <p className="text-sm text-slate-500 text-center mt-4">This usually takes 30 seconds. Check your phone for the M-Pesa prompt.</p>
               </div>
 
               <div className="bg-blue-50 rounded-xl p-5 mb-6 text-left">
