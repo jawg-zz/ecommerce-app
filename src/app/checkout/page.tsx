@@ -269,6 +269,33 @@ function CheckoutPageContent() {
     }
   }, [currentStep])
 
+  // Poll for payment status and redirect on success
+  useEffect(() => {
+    if (currentStep !== 'payment' || !retryDataRef.current?.orderId) return
+
+    const checkPaymentStatus = async () => {
+      try {
+        const res = await fetch(`/api/checkout?orderId=${retryDataRef.current?.orderId}`)
+        const data = await res.json()
+
+        if (data.status === 'success' && data.order) {
+          router.push(`/order-confirmation?orderId=${retryDataRef.current?.orderId}`)
+        } else if (data.status === 'timeout' || data.status === 'cancelled') {
+          setError(data.message || 'Payment failed. Please try again.')
+          setCurrentStep('shipping')
+          refreshCart()
+        }
+      } catch (err) {
+        console.error('Payment status check failed:', err)
+      }
+    }
+
+    const interval = setInterval(checkPaymentStatus, 3000)
+    checkPaymentStatus()
+
+    return () => clearInterval(interval)
+  }, [currentStep, router, refreshCart])
+
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
       const initialItems = JSON.parse(initialCartRef.current)
@@ -501,58 +528,6 @@ function CheckoutPageContent() {
 
   if (!user) {
     return null
-  }
-
-  if (currentStep === 'confirmation') {
-    return (
-      <div className="py-8">
-        <div className="container-custom">
-          <div className="max-w-lg mx-auto text-center">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold mb-2">Order Confirmed!</h1>
-            <p className="text-slate-600 mb-2">Thank you for your purchase.</p>
-            <p className="text-slate-500 mb-6">
-              Order Number: <span className="font-mono font-medium">{orderNumber}</span>
-            </p>
-            
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-left">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                </svg>
-                <div>
-                  <p className="font-medium text-green-800">Confirmation sent!</p>
-                  <p className="text-sm text-green-700">
-                    A confirmation has been sent to your phone.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href={`/orders?success=true`} className="flex-1 btn-primary py-3 text-center">
-                View Order
-              </Link>
-              <Link href="/products" className="flex-1 btn-secondary py-3 text-center">
-                Continue Shopping
-              </Link>
-            </div>
-            
-            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">
-                Need help? <Link href="#" className="text-blue-600 hover:underline">Contact support</Link> with your order number {orderNumber}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   const getStatusMessage = () => {
