@@ -23,8 +23,6 @@ interface ProductCardProps {
   priority?: boolean
 }
 
-const BLUR_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9PRQw7gT0pALdHAAAAAElFTkSuQmCC'
-
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed } = useApp()
   const [loading, setLoading] = useState(false)
@@ -140,8 +138,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             priority={priority}
             quality={85}
-            placeholder="blur"
-            blurDataURL={BLUR_DATA_URL}
+            loading={priority ? 'eager' : 'lazy'}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300">
