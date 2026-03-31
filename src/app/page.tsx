@@ -276,7 +276,7 @@ export default function HomePage() {
                   className="animate-slide-up"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <ProductCard product={product} />
+                  <ProductCard product={product} priority={index < 4} />
                 </div>
               ))}
             </div>

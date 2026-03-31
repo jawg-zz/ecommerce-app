@@ -404,7 +404,7 @@ export function Header() {
                     >
                       <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                         {product.image ? (
-                          <Image src={product.image} alt="" fill className="object-cover" />
+                          <Image src={product.image} alt="" fill sizes="48px" className="object-cover" loading="lazy" quality={85} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-400">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

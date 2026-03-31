@@ -77,6 +77,9 @@ function ProductImage({ product }: { product: Product }) {
             src={product.image}
             alt={product.name}
             fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            priority
+            quality={85}
             className={`object-cover transition-transform duration-300 ${
               isZoomed ? 'scale-150' : 'scale-100'
             }`}
@@ -486,7 +489,7 @@ export default function ProductDetailPage() {
             <h2 className="text-2xl font-bold text-slate-900 mb-8">Related Products</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map((relatedProduct) => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} />
+                <ProductCard key={relatedProduct.id} product={relatedProduct} priority={relatedProducts.indexOf(relatedProduct) < 2} />
               ))}
             </div>
           </div>

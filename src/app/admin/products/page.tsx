@@ -658,7 +658,10 @@ export default function AdminProductsPage() {
                     src={formData.image}
                     alt="Preview"
                     fill
+                    sizes="96px"
                     className="object-cover"
+                    loading="lazy"
+                    quality={85}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
                     }}
@@ -787,7 +790,10 @@ export default function AdminProductsPage() {
                               src={product.image}
                               alt={product.name}
                               fill
+                              sizes="80px"
                               className="object-cover"
+                              loading="lazy"
+                              quality={85}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-400">

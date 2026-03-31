@@ -246,7 +246,10 @@ export default function CartPage() {
                       src={item.product.image}
                       alt={item.product.name}
                       fill
+                      sizes="100px"
                       className="object-cover hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                      quality={85}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">

@@ -20,9 +20,12 @@ interface Product {
 
 interface ProductCardProps {
   product: Product
+  priority?: boolean
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+const BLUR_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9PRQw7gT0pALdHAAAAAElFTkSuQmCC'
+
+export function ProductCard({ product, priority = false }: ProductCardProps) {
   const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed } = useApp()
   const [loading, setLoading] = useState(false)
   const [added, setAdded] = useState(false)
@@ -128,9 +131,17 @@ export function ProductCard({ product }: ProductCardProps) {
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             onLoad={() => setImageLoaded(true)}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              setImageLoaded(true)
+            }}
             className={`object-cover transition-all duration-500 ${
               isHovered ? 'scale-110' : 'scale-100'
             } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            priority={priority}
+            quality={85}
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300">

@@ -1084,7 +1084,10 @@ function CheckoutPageContent() {
                           src={item.product.image}
                           alt={item.product.name}
                           fill
+                          sizes="64px"
                           className="object-cover"
+                          loading="lazy"
+                          quality={85}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-400">

@@ -42,6 +42,7 @@ export function RecentlyViewed() {
                       sizes="200px"
                       className="object-cover group-hover:scale-110 transition-transform duration-300"
                       loading="lazy"
+                      quality={85}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -101,6 +102,7 @@ export function RecentlyViewedHorizontal() {
                     sizes="128px"
                     className="object-cover group-hover:scale-110 transition-transform duration-300"
                     loading="lazy"
+                    quality={85}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300">
