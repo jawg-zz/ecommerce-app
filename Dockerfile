@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
 # Cache bust - increment to force rebuild without cached layers
-ARG CACHE_BUST=0
+ARG CACHE_BUST=1
 RUN echo "Cache bust: ${CACHE_BUST}"
 
 COPY . .
