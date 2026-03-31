@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { redis } from '@/lib/redis'
 import { logInfo, logError } from '@/lib/logger'
 import { logCallbackError, logStructuredInfo } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
@@ -132,6 +133,12 @@ export async function POST(request: NextRequest) {
 
       await cancelPaymentCheck(order.id)
 
+      await redis.publish(`payment-status:${order.id}`, JSON.stringify({
+        status: 'success',
+        orderId: order.id,
+        message: 'Payment confirmed',
+      }))
+
       logInfo('ORDER CONFIRMATION - Payment successful', {
         orderId: order.id,
         orderNumber: order.id.slice(0, 8),
@@ -174,6 +181,12 @@ export async function POST(request: NextRequest) {
       })
 
       await cancelPaymentCheck(order.id)
+
+      await redis.publish(`payment-status:${order.id}`, JSON.stringify({
+        status: 'cancelled',
+        orderId: order.id,
+        message: 'Payment cancelled by user',
+      }))
     }
 
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })

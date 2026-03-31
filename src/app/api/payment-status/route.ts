@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { redis } from '@/lib/redis'
 import { getCurrentUser } from '@/lib/auth'
 import { sendSSEMessage } from '@/lib/sse'
 
 const SSE_TIMEOUT_MS = 2 * 60 * 1000
-const POLL_INTERVAL_MS = 1000
 const HEARTBEAT_INTERVAL_MS = 15000
 
 export async function GET(request: NextRequest) {
@@ -18,68 +17,48 @@ export async function GET(request: NextRequest) {
     return new Response('Missing orderId', { status: 400 })
   }
 
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-  })
-
-  if (!order) {
-    return new Response('Order not found', { status: 404 })
-  }
-
-  if (order.userId !== user.id) {
-    return new Response('Unauthorized', { status: 403 })
-  }
-
-  if (order.status === 'PAID') {
-    const encoder = new TextEncoder()
-    return new Response(encoder.encode(sendSSEMessage({
-      status: 'success',
-      orderId,
-      message: 'Payment confirmed',
-    })), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    })
-  }
-
-  if (order.status === 'CANCELLED') {
-    const encoder = new TextEncoder()
-    return new Response(encoder.encode(sendSSEMessage({
-      status: 'cancelled',
-      orderId,
-      message: 'Payment cancelled',
-    })), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    })
-  }
-
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder()
-      let lastStatus = order.status
-      let startTime = Date.now()
-      let heartbeatInterval: ReturnType<typeof setInterval> | null = null
-      let pollInterval: ReturnType<typeof setInterval> | null = null
       let aborted = false
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      let subscriber: any = null
+
+      const cleanup = async () => {
+        if (aborted) return
+        aborted = true
+
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval)
+          heartbeatInterval = null
+        }
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        if (subscriber) {
+          try {
+            await subscriber.unsubscribe(`payment-status:${orderId}`)
+            await subscriber.quit()
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+          subscriber = null
+        }
+      }
 
       const heartbeat = () => {
         if (aborted) return
         controller.enqueue(encoder.encode(sendSSEMessage({ type: 'heartbeat' })))
       }
 
-      heartbeatInterval = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS)
+      const startHeartbeat = () => {
+        heartbeatInterval = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS)
+      }
 
-      const checkStatus = async () => {
-        if (aborted) return
-
-        if (Date.now() - startTime >= SSE_TIMEOUT_MS) {
+      const startTimeout = () => {
+        timeoutId = setTimeout(async () => {
           if (aborted) return
           controller.enqueue(encoder.encode(sendSSEMessage({
             status: 'timeout',
@@ -87,53 +66,57 @@ export async function GET(request: NextRequest) {
             message: 'Payment wait timed out. Please refresh to check status.',
           })))
           controller.close()
-          if (heartbeatInterval) clearInterval(heartbeatInterval)
-          if (pollInterval) clearInterval(pollInterval)
-          return
-        }
-
-        const currentOrder = await prisma.order.findUnique({
-          where: { id: orderId },
-          select: { status: true },
-        })
-
-        if (!currentOrder || aborted) return
-
-        if (currentOrder.status !== lastStatus) {
-          if (currentOrder.status === 'PAID') {
-            controller.enqueue(encoder.encode(sendSSEMessage({
-              status: 'success',
-              orderId,
-              message: 'Payment confirmed',
-            })))
-            controller.close()
-            if (heartbeatInterval) clearInterval(heartbeatInterval)
-            if (pollInterval) clearInterval(pollInterval)
-          } else if (currentOrder.status === 'CANCELLED') {
-            controller.enqueue(encoder.encode(sendSSEMessage({
-              status: 'cancelled',
-              orderId,
-              message: 'Payment cancelled by user',
-            })))
-            controller.close()
-            if (heartbeatInterval) clearInterval(heartbeatInterval)
-            if (pollInterval) clearInterval(pollInterval)
-          }
-        }
-
-        lastStatus = currentOrder.status
+          await cleanup()
+        }, SSE_TIMEOUT_MS)
       }
 
-      pollInterval = setInterval(checkStatus, POLL_INTERVAL_MS)
+      const connect = async () => {
+        try {
+          subscriber = redis.duplicate()
+          subscriber.on('error', (err: Error) => {
+            console.error('[SSE] Redis subscriber error:', err)
+          })
 
-      request.signal.addEventListener('abort', () => {
-        aborted = true
-        if (heartbeatInterval) clearInterval(heartbeatInterval)
-        if (pollInterval) clearInterval(pollInterval)
-        controller.close()
+          await subscriber.subscribe(`payment-status:${orderId}`)
+
+          subscriber.on('message', async (channel: string, message: string) => {
+            if (aborted) return
+            if (channel !== `payment-status:${orderId}`) return
+
+            try {
+              const data = JSON.parse(message)
+              controller.enqueue(encoder.encode(sendSSEMessage(data)))
+              controller.close()
+              await cleanup()
+            } catch (e) {
+              console.error('[SSE] Failed to parse Redis message:', e)
+            }
+          })
+        } catch (e) {
+          console.error('[SSE] Failed to setup Redis subscriber:', e)
+          if (!aborted) {
+            controller.enqueue(encoder.encode(sendSSEMessage({
+              status: 'error',
+              orderId,
+              message: 'Connection error. Please refresh.',
+            })))
+            controller.close()
+          }
+        }
+      }
+
+      startHeartbeat()
+      startTimeout()
+      connect()
+
+      request.signal.addEventListener('abort', async () => {
+        await cleanup()
+        try {
+          controller.close()
+        } catch (e) {
+          // Controller may already be closed
+        }
       })
-
-      checkStatus()
     },
   })
 
