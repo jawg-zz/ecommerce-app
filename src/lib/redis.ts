@@ -14,7 +14,7 @@ function createRedis() {
       if (times > 3) return null
       return Math.min(times * 100, 3000)
     },
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: null, // Required for BullMQ
     enableReadyCheck: true,
     lazyConnect: false,
   })
