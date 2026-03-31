@@ -13,8 +13,10 @@ RUN rm -rf node_modules package-lock.json && npm install --legacy-peer-deps
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+
 COPY . .
 
+RUN echo "=== next.config.js ===" && cat next.config.js && echo "====================="
 RUN npx prisma generate
 RUN npm run build
 
