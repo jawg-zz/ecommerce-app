@@ -300,31 +300,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ status: 'success', order: updatedOrder })
     }
 
-    // If payment failed, restore the reserved stock and clear cart
-    if (paymentStatus.status === 'failed') {
-      await prisma.$transaction(async (tx) => {
-        const order = await tx.order.update({
-          where: { id: orderId },
-          data: { status: 'CANCELLED' },
-          include: { items: true },
-        })
-
-        // Restore stock for each item
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          })
-        }
-      })
-
-      // Clear cart on payment failure
-      await clearCart(user.id)
-    }
-
+    // For pending or failed status from query API, just return pending
+    // Let the callback handle cancellation and stock restoration
     return NextResponse.json({ 
-      status: paymentStatus.status,
-      message: paymentStatus.status === 'failed' ? 'Payment failed. Please try again.' : 'Payment pending'
+      status: 'pending',
+      message: 'Payment pending'
     })
   } catch (error) {
     logError('Payment status check error', { error: String(error), orderId })

@@ -290,15 +290,25 @@ export async function querySTKStatus(checkoutRequestId: string): Promise<{
 
     logResponse(endpoint, 200, response)
 
+    // ResultCode '0' = Success
     if (response.ResultCode === '0') {
       return { status: 'success', resultCode: response.ResultCode, resultDesc: response.ResultDesc }
-    } else if (response.ResultCode === '1032') {
-      return { status: 'failed', resultCode: response.ResultCode, resultDesc: 'Payment cancelled by user' }
-    } else if (response.ResponseCode === '0' && !response.ResultCode) {
-      return { status: 'pending' }
-    } else {
-      return { status: 'failed', resultCode: response.ResultCode, resultDesc: response.ResultDesc }
     }
+    
+    // ResultCode '4999' = Still processing (wait for callback)
+    if (response.ResultCode === '4999') {
+      return { status: 'pending' }
+    }
+    
+    // No ResultCode yet = Still processing
+    if (response.ResponseCode === '0' && !response.ResultCode) {
+      return { status: 'pending' }
+    }
+    
+    // Any other ResultCode = Failed (1032 = cancelled, 1037 = timeout, etc.)
+    // But we should NOT cancel here - let the callback handle it
+    // Return pending and let callback do the cancellation
+    return { status: 'pending' }
   } catch (error) {
     logError('querySTKStatus', error)
     throw new Error('Failed to query M-Pesa status')
