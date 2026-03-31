@@ -90,6 +90,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
     }
 
+    if (order.status === 'CANCELLED') {
+      logInfo('Order already cancelled, ignoring callback', { orderId: order.id, CheckoutRequestID })
+      return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
+    }
+
     if (ResultCode === 0) {
       const metadata = CallbackMetadata?.Item || []
       const amount = metadata.find((item: any) => item.Name === 'Amount')?.Value

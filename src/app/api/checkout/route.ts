@@ -47,48 +47,93 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
     }
 
+    // Verify current stock levels before checkout (items might have changed since added to cart)
+    const productIds = cart.items.map(item => item.productId)
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, name: true, stock: true },
+    })
+    
+    const productMap = new Map(products.map(p => [p.id, p]))
+    const outOfStockItems: string[] = []
+    
+    for (const item of cart.items) {
+      const product = productMap.get(item.productId)
+      if (!product) {
+        outOfStockItems.push(`${item.productId} (no longer available)`)
+      } else if (product.stock < item.quantity) {
+        outOfStockItems.push(`${product.name} (only ${product.stock} available)`)
+      }
+    }
+    
+    if (outOfStockItems.length > 0) {
+      return NextResponse.json({ 
+        error: 'Some items in your cart are no longer available',
+        outOfStock: outOfStockItems
+      }, { status: 400 })
+    }
+
+    // Check for existing pending order for this user within a reasonable timeframe (5 minutes)
+    const RECENT_ORDER_THRESHOLD_MS = 5 * 60 * 1000
     const existingPendingOrder = await prisma.order.findFirst({
       where: { 
         userId: user.id,
         status: 'PENDING',
+        createdAt: { gte: new Date(Date.now() - RECENT_ORDER_THRESHOLD_MS) },
       },
       orderBy: { createdAt: 'desc' },
       take: 1,
     })
 
     if (existingPendingOrder && existingPendingOrder.mpesaCheckoutRequestId) {
-      return NextResponse.json({
-        orderId: existingPendingOrder.id,
-        checkoutRequestId: existingPendingOrder.mpesaCheckoutRequestId,
-        amount: cart.total,
-        message: 'Existing payment in progress',
+      // Verify the order still has valid items in cart
+      const orderItems = await prisma.orderItem.findMany({
+        where: { orderId: existingPendingOrder.id },
       })
+      
+      const orderItemMap = new Map(orderItems.map(i => [i.productId, i.quantity]))
+      const cartItemMap = new Map(cart.items.map(i => [i.productId, i.quantity]))
+      
+      // Check if cart still matches order items
+      let cartMatchesOrder = true
+      for (const [productId, qty] of orderItemMap) {
+        if (cartItemMap.get(productId) !== qty) {
+          cartMatchesOrder = false
+          break
+        }
+      }
+      if (orderItemMap.size !== cartItemMap.size) cartMatchesOrder = false
+      
+      if (cartMatchesOrder) {
+        return NextResponse.json({
+          orderId: existingPendingOrder.id,
+          checkoutRequestId: existingPendingOrder.mpesaCheckoutRequestId,
+          amount: cart.total,
+          message: 'Existing payment in progress',
+        })
+      }
     }
 
     // Stock reservation with row-level locking to prevent race conditions
-    const outOfStockItems: string[] = []
+    // Note: Stock has already been validated above, so this is just a safety check
     
     const order = await prisma.$transaction(async (tx) => {
-      for (const item of cart.items) {
-        // Use FOR UPDATE to lock the row and prevent concurrent checkouts
+      // Sort by product ID to ensure consistent locking order and prevent deadlocks
+      const sortedItems = [...cart.items].sort((a, b) => a.productId.localeCompare(b.productId))
+      
+      // Lock each product row sequentially to prevent race conditions and deadlocks
+      for (const item of sortedItems) {
         const [product] = await tx.$queryRaw<Array<{ id: string; name: string; stock: number }>>`
           SELECT id, name, stock FROM "Product" WHERE id = ${item.productId} FOR UPDATE
         `
         
-        if (!product) {
-          outOfStockItems.push(`${item.productId} (not found)`)
-        } else if (product.stock < item.quantity) {
-          outOfStockItems.push(`${product.name} (${product.stock} available, ${item.quantity} requested)`)
+        if (!product || product.stock < item.quantity) {
+          throw new Error('STOCK_CHANGED: Stock changed during checkout. Please try again.')
         }
       }
       
-      // Check if any items are out of stock before proceeding
-      if (outOfStockItems.length > 0) {
-        throw new Error('OUT_OF_STOCK:' + outOfStockItems.join(';'))
-      }
-      
       // All stock available - reserve it
-      for (const item of cart.items) {
+      for (const item of sortedItems) {
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
@@ -150,6 +195,13 @@ export async function POST(request: NextRequest) {
           error: 'Some items are out of stock or have insufficient quantity',
           outOfStock: outOfStockItems
         },
+        { status: 400 }
+      )
+    }
+    
+    if (error instanceof Error && error.message.startsWith('STOCK_CHANGED:')) {
+      return NextResponse.json(
+        { error: 'Stock changed during checkout. Please try again.' },
         { status: 400 }
       )
     }
@@ -248,7 +300,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ status: 'success', order: updatedOrder })
     }
 
-    // If payment failed, restore the reserved stock
+    // If payment failed, restore the reserved stock and clear cart
     if (paymentStatus.status === 'failed') {
       await prisma.$transaction(async (tx) => {
         const order = await tx.order.update({
@@ -265,6 +317,9 @@ export async function GET(request: NextRequest) {
           })
         }
       })
+
+      // Clear cart on payment failure
+      await clearCart(user.id)
     }
 
     return NextResponse.json({ 

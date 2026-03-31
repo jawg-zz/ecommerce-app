@@ -211,6 +211,7 @@ function CheckoutPageContent() {
   const [paymentPhone, setPaymentPhone] = useState('')
   const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'polling' | 'success'>('sending')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
@@ -266,10 +267,33 @@ function CheckoutPageContent() {
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
+        clearTimeout(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
       }
     }
   }, [])
+
+  // Cleanup payment state when leaving payment stage
+  useEffect(() => {
+    if (currentStep !== 'payment' && currentStep !== 'confirmation') {
+      setPaymentStage('sending')
+      setCheckoutRequestId('')
+      setStatusMessage('')
+      if (pollIntervalRef.current) {
+        clearTimeout(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
+      setTimeRemaining(PAYMENT_TIMEOUT_SECONDS)
+    }
+  }, [currentStep])
 
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
@@ -499,18 +523,18 @@ function CheckoutPageContent() {
   }
 
   const pollPaymentStatus = async (checkoutId: string, orderId: string) => {
-    const timerRef = { current: null as NodeJS.Timeout | null }
-    
     const cleanup = () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
       }
       if (pollIntervalRef.current) {
         clearTimeout(pollIntervalRef.current)
+        pollIntervalRef.current = null
       }
     }
 
-    timerRef.current = setInterval(() => {
+    timerIntervalRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
           cleanup()
