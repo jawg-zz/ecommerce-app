@@ -19,6 +19,9 @@ const envSchema: ZodSchema = z.object({
   MPESA_CALLBACK_SECRET: z.string().optional(),
   MPESA_IP_WHITELIST: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 })
@@ -123,6 +126,15 @@ export const env = {
   },
   get CRON_SECRET() {
     return validateEnv().CRON_SECRET
+  },
+  get CLOUDINARY_CLOUD_NAME() {
+    return validateEnv().CLOUDINARY_CLOUD_NAME
+  },
+  get CLOUDINARY_API_KEY() {
+    return validateEnv().CLOUDINARY_API_KEY
+  },
+  get CLOUDINARY_API_SECRET() {
+    return validateEnv().CLOUDINARY_API_SECRET
   },
   get NODE_ENV() {
     return validateEnv().NODE_ENV

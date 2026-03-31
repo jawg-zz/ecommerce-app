@@ -21,6 +21,7 @@ import {
   MoreVertical,
   Image as ImageIcon,
   Package,
+  Loader2,
 } from 'lucide-react'
 
 interface Product {
@@ -87,6 +88,7 @@ export default function AdminProductsPage() {
   })
 
   const [errors, setErrors] = useState<FormErrors>({})
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     fetchProducts()
@@ -391,6 +393,48 @@ export default function AdminProductsPage() {
     return 'IN_STOCK'
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Only jpg, png, and webp are allowed')
+      return
+    }
+
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error('File too large. Maximum size is 5MB')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Upload failed')
+        return
+      }
+
+      setFormData((prev) => ({ ...prev, image: data.url }))
+      toast.success('Image uploaded successfully')
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const paginatedProducts = filteredProducts.slice(
     (pagination.page - 1) * pagination.pageSize,
     pagination.page * pagination.pageSize
@@ -636,15 +680,32 @@ export default function AdminProductsPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Image URL
                 </label>
-                <input
-                  type="url"
-                  name="image"
-                  value={formData.image}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input-field ${touched.image && errors.image ? 'border-red-500' : ''}`}
-                  placeholder="https://..."
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    name="image"
+                    value={formData.image}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`input-field flex-1 ${touched.image && errors.image ? 'border-red-500' : ''}`}
+                    placeholder="https://..."
+                  />
+                  <label className="btn-secondary flex items-center gap-2 cursor-pointer">
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    Upload
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
                 {touched.image && errors.image && (
                   <p className="text-red-500 text-xs mt-1">{errors.image}</p>
                 )}

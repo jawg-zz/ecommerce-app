@@ -99,6 +99,27 @@ To enable M-Pesa payments:
 
 For testing, use the sandbox environment (default in development).
 
+## Cloudinary Setup
+
+To enable image uploads for products:
+
+1. Register at [Cloudinary](https://cloudinary.com/)
+2. Go to your Dashboard to find your cloud name
+3. Navigate to Settings > API Keys to get your API key and secret
+4. Add the credentials to your `.env` file:
+
+```
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+Images uploaded will be:
+- Stored in the `ecommerce/products` folder
+- Automatically optimized (WebP/AVIF with auto quality)
+- Resized to max width 800px
+- Validated for max 5MB file size (jpg, png, webp only)
+
 ## API Endpoints
 
 ### Public
@@ -136,6 +157,7 @@ For testing, use the sandbox environment (default in development).
 - `DELETE /api/admin/products/[id]` - Delete product
 - `GET /api/admin/orders` - List orders
 - `PUT /api/admin/orders/[id]` - Update order status
+- `POST /api/upload` - Upload product image (Admin only)
 
 ## Project Structure
 
