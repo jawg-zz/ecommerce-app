@@ -1,11 +1,21 @@
 import { v2 as cloudinary } from 'cloudinary'
-import { env } from './env'
 
-cloudinary.config({
-  cloud_name: env.CLOUDINARY_CLOUD_NAME,
-  api_key: env.CLOUDINARY_API_KEY,
-  api_secret: env.CLOUDINARY_API_SECRET,
-})
+function getCloudinaryConfig() {
+  return {
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  }
+}
+
+function isCloudinaryConfigured(): boolean {
+  const config = getCloudinaryConfig()
+  return !!(config.cloud_name && config.api_key && config.api_secret)
+}
+
+if (isCloudinaryConfigured()) {
+  cloudinary.config(getCloudinaryConfig())
+}
 
 function generateUniqueFilename(): string {
   const randomString = Math.random().toString(36).substring(2, 15)
