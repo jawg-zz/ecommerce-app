@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { logInfo, logError } from '@/lib/logger'
 import { logCallbackError, logStructuredInfo } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
+import { cancelPaymentCheck } from '@/lib/queue'
 
 const SAFARICOM_IPS = new Set([
   '196.201.214.200',
@@ -129,6 +130,8 @@ export async function POST(request: NextRequest) {
 
       await clearCart(order.userId)
 
+      await cancelPaymentCheck(order.id)
+
       logInfo('ORDER CONFIRMATION - Payment successful', {
         orderId: order.id,
         orderNumber: order.id.slice(0, 8),
@@ -169,6 +172,8 @@ export async function POST(request: NextRequest) {
         ResultCode,
         ResultDesc,
       })
+
+      await cancelPaymentCheck(order.id)
     }
 
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })

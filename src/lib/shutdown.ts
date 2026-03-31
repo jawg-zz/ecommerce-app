@@ -2,6 +2,12 @@ import { prisma } from './prisma'
 import { redis } from './redis'
 import { logInfo, logError } from './logger'
 
+let workerStopPromise: Promise<void> | null = null
+
+export async function setWorkerStopHandler(stopFn: () => Promise<void>): Promise<void> {
+  workerStopPromise = stopFn()
+}
+
 let isShuttingDown = false
 
 export function registerShutdownHandlers() {
@@ -10,6 +16,15 @@ export function registerShutdownHandlers() {
     isShuttingDown = true
 
     logInfo(`Received ${signal}, starting graceful shutdown`)
+
+    if (workerStopPromise) {
+      try {
+        await workerStopPromise
+        logInfo('Workers stopped')
+      } catch (error) {
+        logError('Error stopping workers', { error: String(error) })
+      }
+    }
 
     try {
       await prisma.$disconnect()

@@ -3,10 +3,11 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { getCart, clearCart } from '@/lib/cart'
 import { prisma } from '@/lib/prisma'
-import { initiateSTKPush, querySTKStatus } from '@/lib/mpesa'
+import { initiateSTKPush } from '@/lib/mpesa'
 import { logError } from '@/lib/logger'
 import { logCheckoutError, logPaymentError } from '@/lib/errors'
 import { checkoutRateLimiter } from '@/lib/ratelimit'
+import { schedulePaymentCheck } from '@/lib/queue'
 
 const checkoutSchema = z.object({
   phoneNumber: z.string().regex(/^(254[17]\d{8}|0[17]\d{8})$/, 'Invalid phone number format (use 0712345678 or 254712345678)'),
@@ -174,6 +175,9 @@ export async function POST(request: NextRequest) {
       })
     })
 
+    // Schedule delayed job to check payment status if callback doesn't arrive
+    await schedulePaymentCheck(order.id, 120000) // 2 minutes
+
     return NextResponse.json({
       orderId: order.id,
       checkoutRequestId,
@@ -277,35 +281,23 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Query M-Pesa status
-    const paymentStatus = await querySTKStatus(order.mpesaCheckoutRequestId)
-
-    if (paymentStatus.status === 'success') {
-      // Update order status - stock was already reserved during checkout
-      const updatedOrder = await prisma.$transaction(async (tx) => {
-        const order = await tx.order.update({
-          where: { id: orderId },
-          data: { status: 'PAID' },
-          include: {
-            items: true,
-          },
-        })
-
-        return order
+    // Just return current order status from DB - no M-Pesa query needed
+    // Frontend can call this on user action to check status
+    if (order.status === 'PENDING') {
+      return NextResponse.json({ 
+        status: 'pending',
+        message: 'Waiting for payment confirmation'
       })
-
-      // Clear cart
-      await clearCart(user.id)
-
-      return NextResponse.json({ status: 'success', order: updatedOrder })
     }
 
-    // For pending or failed status from query API, just return pending
-    // Let the callback handle cancellation and stock restoration
-    return NextResponse.json({ 
-      status: 'pending',
-      message: 'Payment pending'
-    })
+    if (order.status === 'CANCELLED') {
+      return NextResponse.json({ 
+        status: 'cancelled',
+        message: 'Order was cancelled'
+      })
+    }
+
+    return NextResponse.json({ status: order.status.toLowerCase(), order })
   } catch (error) {
     logError('Payment status check error', { error: String(error), orderId })
     logPaymentError(error instanceof Error ? error : new Error(String(error)), orderId, user.id)

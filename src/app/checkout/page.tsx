@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -207,8 +207,7 @@ function CheckoutPageContent() {
   const [cartWarning, setCartWarning] = useState<string | null>(null)
   const [orderNumber, setOrderNumber] = useState('')
   const [paymentPhone, setPaymentPhone] = useState('')
-  const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'polling' | 'success'>('sending')
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'success'>('sending')
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
@@ -261,25 +260,12 @@ function CheckoutPageContent() {
     fetchSavedAddresses()
   }, [user])
 
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearTimeout(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-    }
-  }, [])
-
   // Cleanup payment state when leaving payment stage
   useEffect(() => {
     if (currentStep !== 'payment' && currentStep !== 'confirmation') {
       setPaymentStage('sending')
       setCheckoutRequestId('')
       setStatusMessage('')
-      if (pollIntervalRef.current) {
-        clearTimeout(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
     }
   }, [currentStep])
 
@@ -393,10 +379,6 @@ function CheckoutPageContent() {
 
   const cancelPayment = useCallback(async () => {
     cancelRef.current = true
-    if (pollIntervalRef.current) {
-      clearTimeout(pollIntervalRef.current)
-      pollIntervalRef.current = null
-    }
     
     const orderId = retryDataRef.current?.orderId
     if (orderId) {
@@ -413,9 +395,7 @@ function CheckoutPageContent() {
   }, [])
 
   const handleRetry = async () => {
-    if (retryDataRef.current?.orderId) {
-      pollPaymentStatus(retryDataRef.current.orderId, retryDataRef.current.orderId)
-    } else if (retryDataRef.current) {
+    if (retryDataRef.current) {
       retryPayment(retryDataRef.current.shippingAddress, retryDataRef.current.phone)
     }
   }
@@ -460,7 +440,6 @@ function CheckoutPageContent() {
       }
 
       retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
-      pollPaymentStatus(data.checkoutRequestId, data.orderId)
     } catch (err) {
       if (isNetworkError(err)) {
         setError('Unable to connect. Please check your internet connection.')
@@ -500,85 +479,6 @@ function CheckoutPageContent() {
     }
 
     retryPayment(shippingAddress, phone.replace(/\D/g, ''))
-  }
-
-  const pollPaymentStatus = async (checkoutId: string, orderId: string) => {
-    const cleanup = () => {
-      if (pollIntervalRef.current) {
-        clearTimeout(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-    }
-
-    const poll = async () => {
-      if (cancelRef.current) {
-        cleanup()
-        return
-      }
-
-      if (!orderId) {
-        cleanup()
-        setError('Order ID missing')
-        return
-      }
-
-      try {
-        const res = await fetch(`/api/checkout?orderId=${orderId}`)
-        const data = await res.json()
-
-        if (data.status === 'success') {
-          cleanup()
-          setPaymentStage('success')
-          setStatusMessage('Payment confirmed! Processing your order...')
-          
-          const orderNum = data.order?.id || orderId
-          setOrderNumber(orderNum.slice(0, 8).toUpperCase())
-          setCurrentStep('confirmation')
-          setProcessing(false)
-          
-          try {
-            await fetch(`/api/cart`, { method: 'DELETE' })
-          } catch (e) {
-            console.error('Failed to clear cart:', e)
-          }
-          refreshCart()
-          return
-        }
-
-        if (data.status === 'timeout') {
-          cleanup()
-          setError('Payment timed out. Your order has been cancelled.')
-          setCurrentStep('shipping')
-          setProcessing(false)
-          refreshCart()
-          return
-        }
-
-        if (data.errorCode) {
-          cleanup()
-          setError(getMpesaErrorMessage(data.errorCode))
-          setCurrentStep('shipping')
-          setProcessing(false)
-          return
-        }
-
-        if (data.error) {
-          cleanup()
-          setError(data.error)
-          setCurrentStep('shipping')
-          setProcessing(false)
-          return
-        }
-
-        setPaymentStage('polling')
-        setStatusMessage('Waiting for you to enter PIN...')
-        pollIntervalRef.current = setTimeout(poll, 3000)
-      } catch {
-        pollIntervalRef.current = setTimeout(poll, 3000)
-      }
-    }
-
-    pollIntervalRef.current = setTimeout(poll, 3000)
   }
 
   const handlePaymentTimeout = async (orderId: string) => {
@@ -661,8 +561,6 @@ function CheckoutPageContent() {
         return 'Sending payment request...'
       case 'waiting':
         return 'Payment request sent! Check your phone now'
-      case 'polling':
-        return 'Waiting for you to enter PIN...'
       case 'success':
         return 'Payment confirmed!'
       default:
@@ -677,15 +575,16 @@ function CheckoutPageContent() {
           <CheckoutSteps currentStep={currentStep} />
           
           <div className="max-w-lg mx-auto">
+
             <div className="card p-8 text-center">
               <div className="flex justify-center mb-6">
                 <div className="relative">
-                  <div className={`w-24 h-24 bg-green-100 rounded-full flex items-center justify-center ${paymentStage === 'waiting' || paymentStage === 'polling' ? 'animate-pulse' : ''}`}>
+                  <div className={`w-24 h-24 bg-green-100 rounded-full flex items-center justify-center ${paymentStage === 'waiting' ? 'animate-pulse' : ''}`}>
                     <svg className="w-12 h-12 text-green-600" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                     </svg>
                   </div>
-                  {(paymentStage === 'waiting' || paymentStage === 'polling') && (
+                  {(paymentStage === 'waiting') && (
                     <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                       <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
                     </div>
@@ -740,7 +639,7 @@ function CheckoutPageContent() {
                 </div>
               </div>
 
-              {(paymentStage === 'waiting' || paymentStage === 'polling') && (
+              {(paymentStage === 'waiting') && (
                 <div className="flex items-center justify-center gap-2 mb-6 text-slate-500">
                   <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
                   <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>

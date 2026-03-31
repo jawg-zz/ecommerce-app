@@ -42,3 +42,5 @@ export async function validateStartup(): Promise<void> {
 
   logInfo('✓ Startup validation completed successfully')
 }
+
+export { startWorkers } from './workers'
