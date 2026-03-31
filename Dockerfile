@@ -14,9 +14,12 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
+# Cache bust - increment to force rebuild without cached layers
+ARG CACHE_BUST=0
+RUN echo "Cache bust: ${CACHE_BUST}"
+
 COPY . .
 
-RUN echo "=== next.config.js ===" && cat next.config.js && echo "====================="
 RUN npx prisma generate
 RUN npm run build
 
