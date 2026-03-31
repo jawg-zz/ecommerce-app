@@ -537,8 +537,7 @@ function CheckoutPageContent() {
     timerIntervalRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          cleanup()
-          handlePaymentTimeout(orderId)
+          // Don't auto-cancel - let the callback or polling handle it
           return 0
         }
         return prev - 1
@@ -569,6 +568,7 @@ function CheckoutPageContent() {
           const orderNum = data.order?.id || orderId
           setOrderNumber(orderNum.slice(0, 8).toUpperCase())
           setCurrentStep('confirmation')
+          setProcessing(false)
           
           try {
             await fetch(`/api/cart`, { method: 'DELETE' })
@@ -579,17 +579,28 @@ function CheckoutPageContent() {
           return
         }
 
+        if (data.status === 'timeout') {
+          cleanup()
+          setError('Payment timed out. Your order has been cancelled.')
+          setCurrentStep('shipping')
+          setProcessing(false)
+          refreshCart()
+          return
+        }
+
         if (data.errorCode) {
           cleanup()
           setError(getMpesaErrorMessage(data.errorCode))
-          handlePaymentTimeout(orderId)
+          setCurrentStep('shipping')
+          setProcessing(false)
           return
         }
 
         if (data.error) {
           cleanup()
           setError(data.error)
-          handlePaymentTimeout(orderId)
+          setCurrentStep('shipping')
+          setProcessing(false)
           return
         }
 
