@@ -156,13 +156,16 @@ function OrdersContent() {
                 <div className="space-y-3">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex gap-4">
-                      <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                      <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                         {item.product.image ? (
                           <Image
                             src={item.product.image}
                             alt={item.product.name}
                             fill
+                            sizes="64px"
                             className="object-cover"
+                            loading="lazy"
+                            quality={85}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-400">
