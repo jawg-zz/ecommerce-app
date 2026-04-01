@@ -292,16 +292,19 @@ function CheckoutPageContent() {
             eventSource.close()
             console.log('[Checkout] Redirecting to confirmation page')
             router.push(`/order-confirmation?orderId=${orderId}`)
-          } else if (data.status === 'cancelled' || data.status === 'failed') {
+          } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
             setError(data.message || 'Payment failed. Please try again.')
             setCurrentStep('shipping')
+            setProcessing(false)
             refreshCart()
+            eventSource.close()
           } else if (data.status === 'timeout') {
             setError(data.message || 'Payment timed out. Please try again.')
             setCurrentStep('shipping')
+            setProcessing(false)
             refreshCart()
+            eventSource.close()
           }
-          eventSource.close()
         } catch (err) {
           console.error('Failed to parse SSE message:', err)
         }
@@ -479,6 +482,7 @@ function CheckoutPageContent() {
           setError(data.error || 'Checkout failed')
         }
         setProcessing(false)
+        setCurrentStep('shipping')
         return
       }
 
