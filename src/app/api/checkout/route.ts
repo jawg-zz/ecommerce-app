@@ -209,15 +209,15 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Notify frontend via SSE that payment initiation failed
-      const { redis } = await import('@/lib/redis')
-      await redis.publish(`payment-status:${order.id}`, JSON.stringify({
-        status: 'error',
-        orderId: order.id,
-        message: errorMessage,
-      })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
-      
-      throw stkError
+      // Return error response with orderId so frontend can handle it
+      return NextResponse.json(
+        { 
+          error: errorMessage,
+          orderId: order.id,
+          failed: true
+        },
+        { status: 400 }
+      )
     }
 
     await prisma.$transaction(async (tx) => {

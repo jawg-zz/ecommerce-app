@@ -463,6 +463,11 @@ function CheckoutPageContent() {
     setPaymentStage('sending')
     setStatusMessage('Sending payment request...')
 
+    // Move to payment screen first
+    setPaymentPhone(phoneNumber)
+    console.log('[Checkout] Moving to payment step')
+    setCurrentStep('payment')
+
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -474,11 +479,6 @@ function CheckoutPageContent() {
 
       const data = await res.json()
 
-      // Move to payment screen first
-      setPaymentPhone(phoneNumber)
-      console.log('[Checkout] Moving to payment step')
-      setCurrentStep('payment')
-
       if (!res.ok) {
         // Show error on payment screen, not shipping form
         setCheckoutRequestId('')
@@ -489,6 +489,10 @@ function CheckoutPageContent() {
         }
         setProcessing(false)
         setPaymentStage('sending')
+        // Store orderId even on failure so we can retry
+        if (data.orderId) {
+          retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
+        }
         return
       }
 
@@ -513,7 +517,6 @@ function CheckoutPageContent() {
       }
       setProcessing(false)
       setPaymentStage('sending')
-      setCurrentStep('payment')
     }
   }
 
