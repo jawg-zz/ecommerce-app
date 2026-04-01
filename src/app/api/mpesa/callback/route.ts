@@ -5,8 +5,6 @@ import { logInfo, logError } from '@/lib/logger'
 import { logCallbackError } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
 import { cancelPaymentCheck } from '@/lib/queue'
-import { env } from '@/lib/env'
-import crypto from 'crypto'
 
 const SAFARICOM_IPS = new Set([
   '196.201.214.200',
@@ -40,23 +38,6 @@ function isAllowedIP(ip: string | null): boolean {
   return false
 }
 
-function verifySignature(body: string, signature: string | null): boolean {
-  const secret = env.MPESA_CALLBACK_SECRET
-  if (!secret || !signature) {
-    return false
-  }
-  
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(body)
-    .digest('base64')
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  )
-}
-
 /**
  * M-Pesa callback endpoint
  * Safaricom sends payment results here
@@ -75,18 +56,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
   }
 
-  const rawBody = await request.text()
-  const signature = request.headers.get('x-mpesa-signature') || request.headers.get('signature')
-  
-  if (!verifySignature(rawBody, signature)) {
-    logError('Unauthorized M-Pesa callback - Invalid signature', {
-      ip: clientIP || 'unknown'
-    })
-    return NextResponse.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
-    const body = JSON.parse(rawBody)
+    const body = await request.json()
 
     const { Body } = body
     const { stkCallback } = Body
