@@ -137,6 +137,14 @@ export async function POST(request: NextRequest) {
 
       await cancelPaymentCheck(order.id)
 
+      // Store status in Redis hash (persistent)
+      await redis.hset(`order:${order.id}`, {
+        status: 'success',
+        message: 'Payment confirmed',
+        updatedAt: Date.now().toString()
+      })
+      await redis.expire(`order:${order.id}`, 600) // 10 min TTL
+
       logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'success' })
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({
         status: 'success',
@@ -187,6 +195,14 @@ export async function POST(request: NextRequest) {
       })
 
       await cancelPaymentCheck(order.id)
+
+      // Store status in Redis hash (persistent)
+      await redis.hset(`order:${order.id}`, {
+        status: 'cancelled',
+        message: ResultDesc || 'Payment cancelled by user',
+        updatedAt: Date.now().toString()
+      })
+      await redis.expire(`order:${order.id}`, 600) // 10 min TTL
 
       logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'cancelled' })
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({

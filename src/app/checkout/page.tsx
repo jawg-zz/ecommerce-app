@@ -276,7 +276,31 @@ function CheckoutPageContent() {
 
     const orderId = retryDataRef.current.orderId
 
-    const connectSSE = () => {
+    const connectSSE = async () => {
+      // Check initial state from Redis hash first (in case callback already arrived)
+      try {
+        const res = await fetch(`/api/checkout?orderId=${orderId}`)
+        if (res.ok) {
+          const data = await res.json()
+          
+          // If already completed, handle immediately
+          if (data.status === 'success') {
+            console.log('[Checkout] Order already paid, redirecting')
+            router.push(`/order-confirmation?orderId=${orderId}`)
+            return
+          } else if (data.status === 'cancelled' || data.status === 'timeout') {
+            console.log('[Checkout] Order already cancelled/timeout')
+            setError(data.message || 'Payment failed. Please try again.')
+            setPaymentStage('sending')
+            setProcessing(false)
+            return
+          }
+        }
+      } catch (err) {
+        console.error('[Checkout] Failed to check initial state:', err)
+      }
+
+      // Order still pending, connect SSE for real-time updates
       console.log('[Checkout] Opening SSE connection for orderId:', orderId)
       const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
       eventSourceRef.current = eventSource
