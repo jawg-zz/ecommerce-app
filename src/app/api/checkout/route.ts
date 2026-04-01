@@ -297,26 +297,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Check order status first
+    // Check order status from database
     if (order.status === 'PAID') {
       return NextResponse.json({ status: 'success', order })
     }
 
     if (order.status === 'CANCELLED') {
-      // Try to get detailed message from Redis hash
-      let message = 'Payment was cancelled'
-      try {
-        const redisStatus = await redis.hgetall(`order:${orderId}`)
-        if (redisStatus && redisStatus.message) {
-          message = redisStatus.message
-        }
-      } catch (err) {
-        logError('Failed to get Redis status', { error: String(err), orderId })
-      }
-      
       return NextResponse.json({ 
         status: 'cancelled',
-        message
+        message: 'Payment was cancelled'
       })
     }
 
