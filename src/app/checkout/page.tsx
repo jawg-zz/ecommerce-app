@@ -275,6 +275,7 @@ function CheckoutPageContent() {
     if (currentStep !== 'payment' || !retryDataRef.current?.orderId) return
 
     const orderId = retryDataRef.current.orderId
+    let pollInterval: ReturnType<typeof setInterval> | null = null
 
     const connectSSE = () => {
       console.log('[Checkout] Opening SSE connection for orderId:', orderId)
@@ -290,6 +291,7 @@ function CheckoutPageContent() {
 
           if (data.status === 'success') {
             eventSource.close()
+            if (pollInterval) clearInterval(pollInterval)
             console.log('[Checkout] Redirecting to confirmation page')
             router.push(`/order-confirmation?orderId=${orderId}`)
           } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
@@ -297,11 +299,13 @@ function CheckoutPageContent() {
             setPaymentStage('sending') // Allow retry from payment screen
             setProcessing(false)
             eventSource.close()
+            if (pollInterval) clearInterval(pollInterval)
           } else if (data.status === 'timeout') {
             setError(data.message || 'Payment timed out. Please try again.')
             setPaymentStage('sending')
             setProcessing(false)
             eventSource.close()
+            if (pollInterval) clearInterval(pollInterval)
           }
         } catch (err) {
           console.error('Failed to parse SSE message:', err)
@@ -310,16 +314,45 @@ function CheckoutPageContent() {
 
       eventSource.onerror = () => {
         eventSource.close()
-        console.error('[Checkout] SSE error: connection error, falling back to manual check')
+        console.error('[Checkout] SSE error: connection error, falling back to polling')
       }
     }
 
+    // Fallback polling in case SSE misses the callback
+    const startPolling = () => {
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/checkout?orderId=${orderId}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.status === 'success') {
+              if (pollInterval) clearInterval(pollInterval)
+              if (eventSourceRef.current) eventSourceRef.current.close()
+              router.push(`/order-confirmation?orderId=${orderId}`)
+            } else if (data.status === 'cancelled' || data.status === 'timeout') {
+              if (pollInterval) clearInterval(pollInterval)
+              if (eventSourceRef.current) eventSourceRef.current.close()
+              setError(data.message || 'Payment failed. Please try again.')
+              setPaymentStage('sending')
+              setProcessing(false)
+            }
+          }
+        } catch (err) {
+          console.error('[Checkout] Polling error:', err)
+        }
+      }, 3000) // Poll every 3 seconds
+    }
+
     connectSSE()
+    startPolling()
 
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval)
       }
     }
   }, [currentStep, router, refreshCart])
