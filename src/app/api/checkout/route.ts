@@ -305,7 +305,7 @@ export async function GET(request: NextRequest) {
     if (order.status === 'CANCELLED') {
       return NextResponse.json({ 
         status: 'cancelled',
-        message: 'Payment was cancelled'
+        message: order.cancelReason || 'Payment was cancelled'
       })
     }
 

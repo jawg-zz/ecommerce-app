@@ -169,7 +169,10 @@ export async function POST(request: NextRequest) {
     } else {
       const orderWithItems = await prisma.order.update({
         where: { id: order.id },
-        data: { status: 'CANCELLED' },
+        data: { 
+          status: 'CANCELLED',
+          cancelReason: ResultDesc || 'Payment cancelled by user'
+        },
         include: { items: true },
       })
 
