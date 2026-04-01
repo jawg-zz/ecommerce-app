@@ -187,6 +187,36 @@ export async function POST(request: NextRequest) {
       })
 
       logError('Stock restored after STK Push failure', { orderId: order.id })
+      
+      // Extract user-friendly error message
+      let errorMessage = 'Payment initiation failed. Please try again.'
+      if (stkError instanceof Error) {
+        const errorStr = stkError.message
+        // Extract M-Pesa error messages
+        if (errorStr.includes('Invalid phone number')) {
+          errorMessage = 'Invalid phone number. Please check and try again.'
+        } else if (errorStr.includes('Insufficient funds')) {
+          errorMessage = 'Insufficient M-Pesa balance. Please top up and try again.'
+        } else if (errorStr.includes('timeout') || errorStr.includes('timed out')) {
+          errorMessage = 'Request timed out. Please check your connection and try again.'
+        } else if (errorStr.includes('The initiator information is invalid')) {
+          errorMessage = 'Payment service temporarily unavailable. Please try again later.'
+        } else if (errorStr.includes('Unable to lock subscriber')) {
+          errorMessage = 'Your M-Pesa account is busy. Please try again in a moment.'
+        } else if (errorStr.match(/\(Code: \d+\)/)) {
+          // Keep M-Pesa error codes if present
+          errorMessage = errorStr
+        }
+      }
+      
+      // Notify frontend via SSE that payment initiation failed
+      const { redis } = await import('@/lib/redis')
+      await redis.publish(`payment-status:${order.id}`, JSON.stringify({
+        status: 'error',
+        orderId: order.id,
+        message: errorMessage,
+      })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
+      
       throw stkError
     }
 
