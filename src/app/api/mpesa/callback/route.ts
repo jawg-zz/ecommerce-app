@@ -192,8 +192,8 @@ export async function POST(request: NextRequest) {
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({
         status: 'cancelled',
         orderId: order.id,
-        message: 'Payment cancelled by user',
-      }))
+        message: ResultDesc || 'Payment cancelled by user',
+      })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
     }
 
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
