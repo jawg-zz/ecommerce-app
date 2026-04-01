@@ -294,15 +294,13 @@ function CheckoutPageContent() {
             router.push(`/order-confirmation?orderId=${orderId}`)
           } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
             setError(data.message || 'Payment failed. Please try again.')
-            setCurrentStep('shipping')
+            setPaymentStage('sending') // Allow retry from payment screen
             setProcessing(false)
-            refreshCart()
             eventSource.close()
           } else if (data.status === 'timeout') {
             setError(data.message || 'Payment timed out. Please try again.')
-            setCurrentStep('shipping')
+            setPaymentStage('sending')
             setProcessing(false)
-            refreshCart()
             eventSource.close()
           }
         } catch (err) {
@@ -448,8 +446,9 @@ function CheckoutPageContent() {
     
     setCurrentStep('shipping')
     setError('')
+    setProcessing(false)
     refreshCart()
-  }, [])
+  }, [refreshCart])
 
   const handleRetry = async () => {
     if (retryDataRef.current) {
@@ -475,26 +474,29 @@ function CheckoutPageContent() {
 
       const data = await res.json()
 
+      // Move to payment screen first (optimistic UI)
+      setCheckoutRequestId(data.checkoutRequestId || '')
+      setPaymentPhone(phoneNumber)
+      console.log('[Checkout] Moving to payment step')
+      setCurrentStep('payment')
+      setPaymentStage('waiting')
+
       if (!res.ok) {
+        // Show error on payment screen, not shipping form
         if (data.errorCode) {
           setError(getMpesaErrorMessage(data.errorCode))
         } else {
           setError(data.error || 'Checkout failed')
         }
         setProcessing(false)
-        setCurrentStep('shipping')
+        setPaymentStage('sending') // Reset to allow retry
         return
       }
-
-      setCheckoutRequestId(data.checkoutRequestId)
-      setPaymentPhone(phoneNumber)
-      console.log('[Checkout] Moving to payment step')
-      setCurrentStep('payment')
-      setPaymentStage('waiting')
 
       if (!data.checkoutRequestId || !data.orderId) {
         setError('Invalid checkout response')
         setProcessing(false)
+        setPaymentStage('sending')
         return
       }
 
@@ -657,32 +659,65 @@ function CheckoutPageContent() {
               )}
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-left">
-                  <p className="font-medium">{error}</p>
+                <div className="bg-red-50 border-2 border-red-500 text-red-700 p-4 rounded-xl mb-6 text-left">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-1">Payment Failed</p>
+                      <p className="text-sm">{error}</p>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
-                <p className="font-medium text-yellow-800 mb-2">Didn't receive the prompt?</p>
-                <ul className="text-sm text-yellow-700 space-y-1 mb-3">
-                  <li>• Make sure your phone is on and has signal</li>
-                  <li>• Check your M-Pesa balance</li>
-                  <li>• You may have insufficient funds</li>
-                </ul>
-                <button
-                  onClick={handleRetry}
-                  className="w-full py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
+              {!error && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
+                  <p className="font-medium text-yellow-800 mb-2">Didn't receive the prompt?</p>
+                  <ul className="text-sm text-yellow-700 space-y-1 mb-3">
+                    <li>• Make sure your phone is on and has signal</li>
+                    <li>• Check your M-Pesa balance</li>
+                    <li>• You may have insufficient funds</li>
+                  </ul>
+                  <button
+                    onClick={handleRetry}
+                    disabled={processing}
+                    className="w-full py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processing ? 'Retrying...' : 'Try Again'}
+                  </button>
+                </div>
+              )}
 
-              <button
-                onClick={cancelPayment}
-                className="w-full py-3 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium"
-              >
-                Cancel Payment
-              </button>
+              {error && (
+                <div className="flex gap-3 mb-6">
+                  <button
+                    onClick={handleRetry}
+                    disabled={processing}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processing ? 'Retrying...' : 'Try Again'}
+                  </button>
+                  <button
+                    onClick={cancelPayment}
+                    disabled={processing}
+                    className="flex-1 py-3 border-2 border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              )}
+
+              {!error && (
+                <button
+                  onClick={cancelPayment}
+                  disabled={processing}
+                  className="w-full py-3 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel Payment
+                </button>
+              )}
 
               <div className="mt-6 pt-4 border-t border-slate-200">
                 <p className="text-xs text-slate-500">
