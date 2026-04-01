@@ -160,14 +160,36 @@ export async function POST(request: NextRequest) {
       return newOrder
     })
 
-    // Initiate M-Pesa STK Push
-    const { checkoutRequestId } = await initiateSTKPush(
-      phoneNumber,
-      cart.total,
-      order.id
-    )
+    let checkoutRequestId: string
+    try {
+      const result = await initiateSTKPush(
+        phoneNumber,
+        cart.total,
+        order.id
+      )
+      checkoutRequestId = result.checkoutRequestId
+    } catch (stkError) {
+      logError('STK Push failed, rolling back order', { error: String(stkError), orderId: order.id })
+      
+      await prisma.$transaction(async (tx) => {
+        const orderWithItems = await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'CANCELLED' },
+          include: { items: true },
+        })
 
-    // Update checkoutRequestId in same transaction to ensure consistency
+        for (const item of orderWithItems.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+      })
+
+      logError('Stock restored after STK Push failure', { orderId: order.id })
+      throw stkError
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.order.update({
         where: { id: order.id },

@@ -1,5 +1,6 @@
 import { redis } from './redis'
 import { prisma } from './prisma'
+import { logError } from './logger'
 
 export interface CartItem {
   productId: string
@@ -39,8 +40,7 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
     // Ensure items is always an array
     items = Array.isArray(parsed) ? parsed : []
   } catch (error) {
-    console.error('Failed to parse cart data:', error)
-    // Clear corrupted cart data
+    logError('Failed to parse cart data', { error: String(error) })
     await redis.del(key)
     return { items: [], total: 0 }
   }
@@ -80,10 +80,13 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
   return { items: cartItems, total }
 }
 
+const CART_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
+
 const ADD_TO_CART_SCRIPT = `
 local key = KEYS[1]
 local productId = ARGV[1]
 local quantity = tonumber(ARGV[2])
+local ttl = tonumber(ARGV[3])
 
 local cartData = redis.call('GET', key)
 local items = {}
@@ -106,18 +109,20 @@ if not found then
 end
 
 redis.call('SET', key, cjson.encode(items))
+redis.call('EXPIRE', key, ttl)
 return 'OK'
 `
 
 export async function addToCart(userId: string, productId: string, quantity: number = 1): Promise<void> {
   const key = getCartKey(userId)
-  await redis.eval(ADD_TO_CART_SCRIPT, 1, key, productId, quantity)
+  await redis.eval(ADD_TO_CART_SCRIPT, 1, key, productId, quantity, CART_TTL_SECONDS)
 }
 
 const UPDATE_CART_ITEM_SCRIPT = `
 local key = KEYS[1]
 local productId = ARGV[1]
 local quantity = tonumber(ARGV[2])
+local ttl = tonumber(ARGV[3])
 
 local cartData = redis.call('GET', key)
 if not cartData then
@@ -144,17 +149,21 @@ else
 end
 
 redis.call('SET', key, cjson.encode(items))
+if ttl > 0 then
+  redis.call('EXPIRE', key, ttl)
+end
 return 'OK'
 `
 
 export async function updateCartItem(userId: string, productId: string, quantity: number): Promise<void> {
   const key = getCartKey(userId)
-  await redis.eval(UPDATE_CART_ITEM_SCRIPT, 1, key, productId, quantity)
+  await redis.eval(UPDATE_CART_ITEM_SCRIPT, 1, key, productId, quantity, CART_TTL_SECONDS)
 }
 
 const REMOVE_FROM_CART_SCRIPT = `
 local key = KEYS[1]
 local productId = ARGV[1]
+local ttl = tonumber(ARGV[2])
 
 local cartData = redis.call('GET', key)
 if not cartData then
@@ -171,12 +180,15 @@ for i, item in ipairs(items) do
 end
 
 redis.call('SET', key, cjson.encode(newItems))
+if ttl > 0 then
+  redis.call('EXPIRE', key, ttl)
+end
 return 'OK'
 `
 
 export async function removeFromCart(userId: string, productId: string): Promise<void> {
   const key = getCartKey(userId)
-  await redis.eval(REMOVE_FROM_CART_SCRIPT, 1, key, productId)
+  await redis.eval(REMOVE_FROM_CART_SCRIPT, 1, key, productId, CART_TTL_SECONDS)
 }
 
 export async function clearCart(userId: string): Promise<void> {
@@ -260,7 +272,7 @@ export async function getCartWithBackup(userId: string): Promise<CartWithProduct
         productId: item.productId,
         quantity: item.quantity,
       })))
-      await redis.set(key, cartJson)
+      await redis.set(key, cartJson, 'EX', CART_TTL_SECONDS)
       return backupCart
     }
     return { items: [], total: 0 }
@@ -271,7 +283,7 @@ export async function getCartWithBackup(userId: string): Promise<CartWithProduct
     const parsed = JSON.parse(cartData)
     items = Array.isArray(parsed) ? parsed : []
   } catch (error) {
-    console.error('Failed to parse cart data:', error)
+    logError('Failed to parse cart data', { error: String(error), userId })
     await redis.del(key)
     return { items: [], total: 0 }
   }

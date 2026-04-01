@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { redis } from '@/lib/redis'
 import { getCurrentUser } from '@/lib/auth'
 import { sendSSEMessage } from '@/lib/sse'
+import { prisma } from '@/lib/prisma'
+import { logInfo, logError } from '@/lib/logger'
 
 const SSE_TIMEOUT_MS = 2 * 60 * 1000
 const HEARTBEAT_INTERVAL_MS = 15000
@@ -17,6 +19,15 @@ export async function GET(request: NextRequest) {
     return new Response('Missing orderId', { status: 400 })
   }
 
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { userId: true },
+  })
+
+  if (!order || order.userId !== user.id) {
+    return new Response('Not Found', { status: 404 })
+  }
+
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder()
@@ -29,7 +40,7 @@ export async function GET(request: NextRequest) {
         if (aborted) return
         aborted = true
 
-        console.log('[SSE] Cleaning up connection for orderId:', orderId)
+        logInfo('SSE connection cleanup', { orderId })
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval)
           heartbeatInterval = null
@@ -75,10 +86,10 @@ export async function GET(request: NextRequest) {
         try {
           subscriber = redis.duplicate()
           subscriber.on('error', (err: Error) => {
-            console.error('[SSE] Redis subscriber error:', err)
+            logError('SSE Redis subscriber error', { error: String(err), orderId })
           })
 
-          console.log('[SSE] Subscribed to channel: payment-status:' + orderId)
+          logInfo('SSE subscribing to channel', { channel: `payment-status:${orderId}` })
           await subscriber.subscribe(`payment-status:${orderId}`)
 
           subscriber.on('message', async (channel: string, message: string) => {
@@ -86,18 +97,18 @@ export async function GET(request: NextRequest) {
             if (channel !== `payment-status:${orderId}`) return
 
             try {
-              console.log('[SSE] Redis message received:', message)
+              logInfo('SSE Redis message received', { message, orderId })
               const data = JSON.parse(message)
-              console.log('[SSE] Sending event to frontend:', data)
+              logInfo('SSE sending event to frontend', { data, orderId })
               controller.enqueue(encoder.encode(sendSSEMessage(data)))
               controller.close()
               await cleanup()
             } catch (e) {
-              console.error('[SSE] Error parsing message:', e)
+              logError('SSE error parsing message', { error: String(e), orderId })
             }
           })
         } catch (e) {
-          console.error('[SSE] Failed to setup Redis subscriber:', e)
+          logError('SSE failed to setup Redis subscriber', { error: String(e), orderId })
           if (!aborted) {
             controller.enqueue(encoder.encode(sendSSEMessage({
               status: 'error',
@@ -111,7 +122,7 @@ export async function GET(request: NextRequest) {
 
       startHeartbeat()
       startTimeout()
-      console.log('[SSE] Connection opened for orderId:', orderId)
+      logInfo('SSE connection opened', { orderId })
       connect()
 
       request.signal.addEventListener('abort', async () => {

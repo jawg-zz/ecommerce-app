@@ -4,6 +4,8 @@
  */
 
 import { env, getValidatedEnv } from './env'
+import { redis } from './redis'
+import { logInfo, logError } from './logger'
 
 interface AccessTokenResponse {
   access_token: string
@@ -78,15 +80,15 @@ function sanitizeForLog(obj: Record<string, unknown>): Record<string, unknown> {
 }
 
 function logRequest(endpoint: string, payload: Record<string, unknown>): void {
-  console.log(`[M-Pesa] REQUEST: ${endpoint}`, JSON.stringify(sanitizeForLog(payload)))
+  logInfo(`M-Pesa REQUEST: ${endpoint}`, sanitizeForLog(payload))
 }
 
 function logResponse(endpoint: string, status: number, data: unknown): void {
-  console.log(`[M-Pesa] RESPONSE: ${endpoint} [${status}]`, JSON.stringify(sanitizeForLog(data as Record<string, unknown>)))
+  logInfo(`M-Pesa RESPONSE: ${endpoint} [${status}]`, sanitizeForLog(data as Record<string, unknown>))
 }
 
-function logError(endpoint: string, error: unknown): void {
-  console.error(`[M-Pesa] ERROR: ${endpoint}`, error)
+function logMpesaError(endpoint: string, error: unknown): void {
+  logError(`M-Pesa ERROR: ${endpoint}`, { error: String(error) })
 }
 
 const retryableStatuses = [408, 429, 500, 502, 503, 504]
@@ -128,7 +130,7 @@ async function fetchWithRetry<T>(
       lastError = error as Error
       if (attempt < maxRetries) {
         const delay = baseDelay * Math.pow(2, attempt)
-        console.log(`[M-Pesa] Retry ${attempt + 1}/${maxRetries} after ${delay}ms`)
+        logInfo(`M-Pesa Retry ${attempt + 1}/${maxRetries} after ${delay}ms`, {})
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
@@ -183,7 +185,7 @@ async function getAccessToken(): Promise<string> {
     setAccessTokenCache(response.access_token, response.expires_in)
     return response.access_token
   } catch (error) {
-    logError('getAccessToken', error)
+    logError('Failed to get M-Pesa access token', { error: String(error) })
     throw new Error('Failed to get M-Pesa access token')
   }
 }
@@ -202,6 +204,16 @@ export async function initiateSTKPush(
   reference: string
 ): Promise<{ checkoutRequestId: string; merchantRequestId: string }> {
   validateEnvVars()
+
+  const idempotencyKey = `stk:${reference}`
+  const existingRequest = await redis.get(idempotencyKey)
+  if (existingRequest) {
+    const parsed = JSON.parse(existingRequest)
+    return {
+      checkoutRequestId: parsed.checkoutRequestId,
+      merchantRequestId: parsed.merchantRequestId,
+    }
+  }
 
   const accessToken = await getAccessToken()
   const { password, timestamp } = generatePassword()
@@ -245,12 +257,16 @@ export async function initiateSTKPush(
       throw new Error(`${response.ResponseDescription} (Code: ${response.ResponseCode})`)
     }
 
-    return {
+    const result = {
       checkoutRequestId: response.CheckoutRequestID,
       merchantRequestId: response.MerchantRequestID,
     }
+
+    await redis.set(idempotencyKey, JSON.stringify(result), 'EX', 3600)
+
+    return result
   } catch (error) {
-    logError('initiateSTKPush', error)
+    logError('M-Pesa STK Push failed', { error: String(error), reference })
     if (error instanceof Error && !error.message.includes('M-Pesa')) {
       throw new Error(`M-Pesa STK Push failed: ${error.message}`)
     }
@@ -310,93 +326,7 @@ export async function querySTKStatus(checkoutRequestId: string): Promise<{
     // Return pending and let callback do the cancellation
     return { status: 'pending' }
   } catch (error) {
-    logError('querySTKStatus', error)
+    logError('Failed to query M-Pesa status', { error: String(error), checkoutRequestId })
     throw new Error('Failed to query M-Pesa status')
   }
-}
-
-export function validateCallback(callback: unknown): { valid: boolean; error?: string } {
-  if (!callback || typeof callback !== 'object') {
-    return { valid: false, error: 'Invalid callback: not an object' }
-  }
-
-  const cb = callback as MpesaCallback
-
-  if (!cb.Body?.stkCallback) {
-    return { valid: false, error: 'Invalid callback: missing stkCallback' }
-  }
-
-  const { stkCallback } = cb.Body
-
-  if (!stkCallback.MerchantRequestID || !stkCallback.CheckoutRequestID) {
-    return { valid: false, error: 'Invalid callback: missing request IDs' }
-  }
-
-  if (typeof stkCallback.ResultCode !== 'number') {
-    return { valid: false, error: 'Invalid callback: missing ResultCode' }
-  }
-
-  return { valid: true }
-}
-
-export function parseCallback(callback: unknown): {
-  merchantRequestId: string
-  checkoutRequestId: string
-  resultCode: number
-  resultDesc: string
-  amount?: number
-  mpesaReceiptNumber?: string
-  phoneNumber?: string
-  transactionDate?: string
-} | null {
-  const validation = validateCallback(callback)
-  if (!validation.valid) {
-    logError('parseCallback', validation.error)
-    return null
-  }
-
-  const cb = callback as MpesaCallback
-  const { stkCallback } = cb.Body
-
-  let amount: number | undefined
-  let mpesaReceiptNumber: string | undefined
-  let phoneNumber: string | undefined
-  let transactionDate: string | undefined
-
-  if (stkCallback.CallbackMetadata?.Item) {
-    for (const item of stkCallback.CallbackMetadata.Item) {
-      switch (item.Name) {
-        case 'Amount':
-          amount = typeof item.Value === 'number' ? item.Value : parseFloat(String(item.Value))
-          break
-        case 'MpesaReceiptNumber':
-          mpesaReceiptNumber = String(item.Value)
-          break
-        case 'PhoneNumber':
-          phoneNumber = String(item.Value)
-          break
-        case 'TransactionDate':
-          transactionDate = String(item.Value)
-          break
-      }
-    }
-  }
-
-  console.log(`[M-Pesa] CALLBACK: MerchantRequestID=${stkCallback.MerchantRequestID}, ResultCode=${stkCallback.ResultCode}`)
-
-  return {
-    merchantRequestId: stkCallback.MerchantRequestID,
-    checkoutRequestId: stkCallback.CheckoutRequestID,
-    resultCode: stkCallback.ResultCode,
-    resultDesc: stkCallback.ResultDesc,
-    amount,
-    mpesaReceiptNumber,
-    phoneNumber,
-    transactionDate,
-  }
-}
-
-export function isSuccessfulCallback(callback: unknown): boolean {
-  const parsed = parseCallback(callback)
-  return parsed?.resultCode === 0
 }

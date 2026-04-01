@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { logInfo, logError } from '@/lib/logger'
-import { logCallbackError, logStructuredInfo } from '@/lib/errors'
+import { logCallbackError } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
 import { cancelPaymentCheck } from '@/lib/queue'
+import { env } from '@/lib/env'
+import crypto from 'crypto'
 
 const SAFARICOM_IPS = new Set([
   '196.201.214.200',
@@ -38,17 +40,33 @@ function isAllowedIP(ip: string | null): boolean {
   return false
 }
 
+function verifySignature(body: string, signature: string | null): boolean {
+  const secret = env.MPESA_CALLBACK_SECRET
+  if (!secret || !signature) {
+    return false
+  }
+  
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(body)
+    .digest('base64')
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  )
+}
+
 /**
  * M-Pesa callback endpoint
  * Safaricom sends payment results here
  */
 export async function POST(request: NextRequest) {
-  const clientIP = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+  const clientIP = request.ip || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
     || request.headers.get('x-real-ip')
     || request.headers.get('cf-connecting-ip')
     || null
 
-  // IP whitelist validation (enabled by default for security)
   const ipWhitelistEnabled = process.env.MPESA_IP_WHITELIST !== 'false'
   if (ipWhitelistEnabled && !isAllowedIP(clientIP)) {
     logError('Unauthorized M-Pesa callback - IP not allowed', {
@@ -57,8 +75,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
   }
 
+  const rawBody = await request.text()
+  const signature = request.headers.get('x-mpesa-signature') || request.headers.get('signature')
+  
+  if (!verifySignature(rawBody, signature)) {
+    logError('Unauthorized M-Pesa callback - Invalid signature', {
+      ip: clientIP || 'unknown'
+    })
+    return NextResponse.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
-    const body = await request.json()
+    const body = JSON.parse(rawBody)
 
     const { Body } = body
     const { stkCallback } = Body
@@ -103,11 +131,16 @@ export async function POST(request: NextRequest) {
       const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
       const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
 
-      if (!amount || Number(amount) <= 0 || Number(order.total) !== Number(amount)) {
+      const receivedAmount = Number(amount)
+      const expectedAmount = Number(order.total)
+      const tolerance = expectedAmount * 0.01
+      
+      if (!amount || receivedAmount <= 0 || Math.abs(receivedAmount - expectedAmount) > tolerance) {
         logError('Payment amount mismatch', {
           orderId: order.id,
-          expected: order.total,
-          received: amount,
+          expected: expectedAmount,
+          received: receivedAmount,
+          tolerance: tolerance,
         })
         return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
       }
@@ -133,13 +166,13 @@ export async function POST(request: NextRequest) {
 
       await cancelPaymentCheck(order.id)
 
-      console.log('[Callback] Publishing to Redis channel: payment-status:' + order.id + ' data:', { status: 'success', orderId: order.id, message: 'Payment confirmed' })
+      logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'success' })
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({
         status: 'success',
         orderId: order.id,
         message: 'Payment confirmed',
-      })).catch(err => console.error('[Callback] Redis publish failed:', err))
-      console.log('[Callback] Redis publish complete')
+      })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
+      logInfo('Redis publish complete', { orderId: order.id })
 
       logInfo('ORDER CONFIRMATION - Payment successful', {
         orderId: order.id,
@@ -184,7 +217,7 @@ export async function POST(request: NextRequest) {
 
       await cancelPaymentCheck(order.id)
 
-      console.log('[Callback] Publishing to Redis channel: payment-status:' + order.id + ' data:', { status: 'cancelled', orderId: order.id, message: 'Payment cancelled by user' })
+      logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'cancelled' })
       await redis.publish(`payment-status:${order.id}`, JSON.stringify({
         status: 'cancelled',
         orderId: order.id,
