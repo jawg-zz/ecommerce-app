@@ -84,14 +84,18 @@ export async function GET(request: NextRequest) {
 
       const connect = async () => {
         try {
+          console.log('[SSE] Client connected for orderId:', orderId)
+
           subscriber = redis.duplicate()
           subscriber.on('error', (err: Error) => {
             logError('SSE Redis subscriber error', { error: String(err), orderId })
           })
 
           await subscriber.subscribe(`payment-status:${orderId}`)
+          console.log('[SSE] Subscribed to channel:', `payment-status:${orderId}`)
 
           subscriber.on('message', async (channel: string, message: string) => {
+            console.log('[SSE] Received message from Redis:', channel, message)
             if (aborted) return
             if (channel !== `payment-status:${orderId}`) return
 

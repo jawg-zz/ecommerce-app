@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
         await cancelPaymentCheck(order.id)
 
         logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'success' })
+        console.log('[Callback] Publishing to Redis:', order.id, 'success')
         await redis.publish(`payment-status:${order.id}`, JSON.stringify({
           status: 'success',
           orderId: order.id,
@@ -216,6 +217,7 @@ export async function POST(request: NextRequest) {
         await cancelPaymentCheck(order.id)
 
         logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'cancelled' })
+        console.log('[Callback] Publishing to Redis:', order.id, 'cancelled')
         await redis.publish(`payment-status:${order.id}`, JSON.stringify({
           status: 'cancelled',
           orderId: order.id,
