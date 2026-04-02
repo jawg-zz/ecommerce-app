@@ -277,7 +277,11 @@ function CheckoutPageContent() {
     const orderId = retryDataRef.current.orderId
 
     const connectSSE = async () => {
-      // Check initial state from Redis hash first (in case callback already arrived)
+      // Wait a moment before checking initial state to avoid race condition
+      // (order was just created, give it time for STK push to complete)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Check initial state from database (in case callback already arrived)
       try {
         const res = await fetch(`/api/checkout?orderId=${orderId}`)
         if (res.ok) {
