@@ -50,6 +50,7 @@ model Order {
   mpesaMerchantRequestId String?
   reference              String?
   shippingAddress        Json?
+  cancelReason           String?     // Store M-Pesa error message
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
 
