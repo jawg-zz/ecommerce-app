@@ -208,6 +208,7 @@ function CheckoutPageContent() {
   const [orderNumber, setOrderNumber] = useState('')
   const [paymentPhone, setPaymentPhone] = useState('')
   const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'success'>('sending')
+  const [timeRemaining, setTimeRemaining] = useState(600)
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
@@ -267,6 +268,7 @@ function CheckoutPageContent() {
       setPaymentStage('sending')
       setCheckoutRequestId('')
       setStatusMessage('')
+      setError('')
     }
   }, [currentStep])
 
@@ -275,12 +277,37 @@ function CheckoutPageContent() {
     if (currentStep !== 'payment' || !retryDataRef.current?.orderId) return
 
     const orderId = retryDataRef.current.orderId
+    let connectionTimeout: NodeJS.Timeout
 
     console.log('[Checkout] Opening SSE connection for orderId:', orderId)
     const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
     eventSourceRef.current = eventSource
 
+    connectionTimeout = setTimeout(async () => {
+      console.log('[Checkout] SSE connection timeout, checking final status')
+      eventSource.close()
+      try {
+        const res = await fetch(`/api/payment-final?orderId=${orderId}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.status === 'success') {
+            router.push(`/order-confirmation?orderId=${orderId}`)
+          } else if (data.status === 'cancelled' || data.status === 'failed') {
+            setError(data.message || 'Payment failed. Please try again.')
+            setPaymentStage('sending')
+            setProcessing(false)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check final status:', e)
+        setError('Connection timeout. Please check your payment status.')
+        setPaymentStage('sending')
+        setProcessing(false)
+      }
+    }, 30000)
+
     eventSource.onmessage = (event) => {
+      clearTimeout(connectionTimeout)
       console.log('[Checkout] SSE message received:', event.data)
       try {
         const data = JSON.parse(event.data)
@@ -338,12 +365,13 @@ function CheckoutPageContent() {
     }
 
     return () => {
+      clearTimeout(connectionTimeout)
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
       }
     }
-  }, [currentStep, router, refreshCart])
+  }, [currentStep, router, refreshCart, retryDataRef.current?.orderId])
 
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
@@ -357,10 +385,23 @@ function CheckoutPageContent() {
       if (hasChanged) {
         setCartWarning('Your cart has changed. Please review before completing payment.')
       }
-    } else if (cart.items.length > 0) {
+    } else if (cart.items.length > 0 && !initialCartRef.current) {
       initialCartRef.current = JSON.stringify(cart.items.map(i => ({ productId: i.productId, quantity: i.quantity })))
     }
   }, [cart.items, setCart])
+
+  useEffect(() => {
+    if (currentStep !== 'payment' || paymentStage !== 'waiting') {
+      setTimeRemaining(600)
+      return
+    }
+    
+    const interval = setInterval(() => {
+      setTimeRemaining(prev => Math.max(0, prev - 1))
+    }, 1000)
+    
+    return () => clearInterval(interval)
+  }, [currentStep, paymentStage])
 
   useEffect(() => {
     if (cart.items.length === 0 && currentStep !== 'confirmation') {
@@ -459,6 +500,15 @@ function CheckoutPageContent() {
     const orderId = retryDataRef.current?.orderId
     if (orderId) {
       try {
+        const statusRes = await fetch(`/api/checkout?orderId=${orderId}`)
+        if (statusRes.ok) {
+          const statusData = await statusRes.json()
+          if (statusData.order?.status === 'PAID') {
+            router.push(`/order-confirmation?orderId=${orderId}`)
+            return
+          }
+        }
+        
         await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
       } catch (e) {
         console.error('Failed to cancel order:', e)
@@ -469,7 +519,7 @@ function CheckoutPageContent() {
     setError('')
     setProcessing(false)
     refreshCart()
-  }, [refreshCart])
+  }, [refreshCart, router])
 
   const handleRetry = async () => {
     if (retryDataRef.current) {
@@ -623,6 +673,15 @@ function CheckoutPageContent() {
               <h2 className="text-2xl font-bold mb-2">Check Your Phone</h2>
               <p className="text-slate-600 mb-6">{getStatusMessage()}</p>
               
+              <div aria-live="polite" aria-atomic="true" className="sr-only">
+                {getStatusMessage()}
+              </div>
+              {error && (
+                <div aria-live="assertive" className="sr-only">
+                  Payment failed: {error}
+                </div>
+              )}
+              
               {paymentPhone && (
                 <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6">
                   <p className="text-sm text-green-700 mb-1">Payment request sent to:</p>
@@ -690,7 +749,7 @@ function CheckoutPageContent() {
                 </div>
               )}
 
-              {!error && (
+              {!error && paymentStage !== 'waiting' && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
                   <p className="font-medium text-yellow-800 mb-2">Didn't receive the prompt?</p>
                   <ul className="text-sm text-yellow-700 space-y-1 mb-3">
@@ -737,14 +796,25 @@ function CheckoutPageContent() {
                 </button>
               )}
 
+              {timeRemaining < 120 && timeRemaining > 0 && (
+                <p className="text-sm text-orange-600 mt-4 text-center">
+                  Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                </p>
+              )}
+
               <div className="mt-6 pt-4 border-t border-slate-200">
                 <p className="text-xs text-slate-500">
-                  Reference: {checkoutRequestId.slice(0, 8).toUpperCase()}
+                  Order: {retryDataRef.current?.orderId?.slice(0, 8).toUpperCase() || 'N/A'}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Reference: {checkoutRequestId?.slice(0, 8).toUpperCase() || 'N/A'}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
                   Need help? Contact support with the reference above
                 </p>
               </div>
+
+              <SecurityBadges />
             </div>
           </div>
         </div>
@@ -1101,7 +1171,8 @@ function CheckoutPageContent() {
                 type="submit"
                 onClick={handleSubmitShipping}
                 disabled={processing || !isFormValid()}
-                className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed sticky bottom-4 lg:static z-10"
+                aria-busy={processing}
+                className="w-full btn-primary py-4 text-lg min-h-[48px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed sticky bottom-4 lg:static z-10"
               >
                 {processing ? (
                   <>
