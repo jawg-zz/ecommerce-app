@@ -375,10 +375,12 @@ function CheckoutPageContent() {
 
     return () => {
       clearTimeout(connectionTimeout)
-      eventSourceCreated.current = false
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
+      }
+      if (currentStep !== 'payment') {
+        eventSourceCreated.current = false
       }
     }
   }, [currentStep, router, refreshCart, orderId])
