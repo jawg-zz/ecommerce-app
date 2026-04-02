@@ -214,6 +214,7 @@ function CheckoutPageContent() {
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
   const eventSourceRef = useRef<EventSource | null>(null)
+  const eventSourceCreated = useRef(false)
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     name: '',
@@ -277,7 +278,9 @@ function CheckoutPageContent() {
   // Connect to SSE for real-time payment status updates
   useEffect(() => {
     if (currentStep !== 'payment' || !orderId) return
+    if (eventSourceCreated.current) return
 
+    eventSourceCreated.current = true
     const orderIdVal = orderId
     let connectionTimeout: NodeJS.Timeout
 
@@ -372,6 +375,7 @@ function CheckoutPageContent() {
 
     return () => {
       clearTimeout(connectionTimeout)
+      eventSourceCreated.current = false
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
