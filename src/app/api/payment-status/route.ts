@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
         if (aborted) return
         aborted = true
 
-        logInfo('SSE connection cleanup', { orderId })
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval)
           heartbeatInterval = null
