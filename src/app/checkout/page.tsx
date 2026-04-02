@@ -208,6 +208,7 @@ function CheckoutPageContent() {
   const [orderNumber, setOrderNumber] = useState('')
   const [paymentPhone, setPaymentPhone] = useState('')
   const [paymentStage, setPaymentStage] = useState<'sending' | 'waiting' | 'success'>('sending')
+  const [orderId, setOrderId] = useState<string | undefined>(undefined)
   const [timeRemaining, setTimeRemaining] = useState(600)
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
@@ -269,14 +270,15 @@ function CheckoutPageContent() {
       setCheckoutRequestId('')
       setStatusMessage('')
       setError('')
+      setOrderId(undefined)
     }
   }, [currentStep])
 
   // Connect to SSE for real-time payment status updates
   useEffect(() => {
-    if (currentStep !== 'payment' || !retryDataRef.current?.orderId) return
+    if (currentStep !== 'payment' || !orderId) return
 
-    const orderId = retryDataRef.current.orderId
+    const orderIdVal = orderId
     let connectionTimeout: NodeJS.Timeout
 
     console.log('[Checkout] Opening SSE connection for orderId:', orderId)
@@ -287,11 +289,11 @@ function CheckoutPageContent() {
       console.log('[Checkout] SSE connection timeout, checking final status')
       eventSource.close()
       try {
-        const res = await fetch(`/api/payment-final?orderId=${orderId}`)
+        const res = await fetch(`/api/payment-final?orderId=${orderIdVal}`)
         if (res.ok) {
           const data = await res.json()
           if (data.status === 'success') {
-            router.push(`/order-confirmation?orderId=${orderId}`)
+            router.push(`/order-confirmation?orderId=${orderIdVal}`)
           } else if (data.status === 'cancelled' || data.status === 'failed') {
             setError(data.message || 'Payment failed. Please try again.')
             setPaymentStage('sending')
@@ -317,7 +319,7 @@ function CheckoutPageContent() {
         if (data.status === 'success') {
           eventSource.close()
           console.log('[Checkout] Redirecting to confirmation page')
-          router.push(`/order-confirmation?orderId=${orderId}`)
+          router.push(`/order-confirmation?orderId=${orderIdVal}`)
         } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
           setError(data.message || 'Payment failed. Please try again.')
           setPaymentStage('sending')
@@ -338,14 +340,13 @@ function CheckoutPageContent() {
       eventSource.close()
       console.error('[Checkout] SSE error: connection error, checking final status')
       
-      const orderId = retryDataRef.current?.orderId
-      if (orderId) {
+      if (orderIdVal) {
         try {
-          const res = await fetch(`/api/payment-final?orderId=${orderId}`)
+          const res = await fetch(`/api/payment-final?orderId=${orderIdVal}`)
           if (res.ok) {
             const data = await res.json()
             if (data.status === 'success') {
-              router.push(`/order-confirmation?orderId=${orderId}`)
+              router.push(`/order-confirmation?orderId=${orderIdVal}`)
               return
             } else if (data.status === 'cancelled' || data.status === 'failed') {
               setError(data.message || 'Payment failed. Please try again.')
@@ -371,7 +372,7 @@ function CheckoutPageContent() {
         eventSourceRef.current = null
       }
     }
-  }, [currentStep, router, refreshCart, retryDataRef.current?.orderId])
+  }, [currentStep, router, refreshCart, orderId])
 
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
@@ -560,6 +561,7 @@ function CheckoutPageContent() {
         setProcessing(false)
         setPaymentStage('sending')
         if (data.orderId) {
+          setOrderId(data.orderId)
           retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
         }
         return
@@ -568,6 +570,7 @@ function CheckoutPageContent() {
       // Only set after success
       setCheckoutRequestId(data.checkoutRequestId)
       setPaymentStage('waiting')
+      setOrderId(data.orderId)
       retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
     } catch (err) {
       if (isNetworkError(err)) {
