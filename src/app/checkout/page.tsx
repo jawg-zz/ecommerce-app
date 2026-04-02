@@ -276,73 +276,41 @@ function CheckoutPageContent() {
 
     const orderId = retryDataRef.current.orderId
 
-    const connectSSE = async () => {
-      // Wait a moment before checking initial state to avoid race condition
-      // (order was just created, give it time for STK push to complete)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+    console.log('[Checkout] Opening SSE connection for orderId:', orderId)
+    const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
+    eventSourceRef.current = eventSource
 
-      // Check initial state from database (in case callback already arrived)
+    eventSource.onmessage = (event) => {
+      console.log('[Checkout] SSE message received:', event.data)
       try {
-        const res = await fetch(`/api/checkout?orderId=${orderId}`)
-        if (res.ok) {
-          const data = await res.json()
-          
-          // If already completed, handle immediately
-          if (data.status === 'success') {
-            console.log('[Checkout] Order already paid, redirecting')
-            router.push(`/order-confirmation?orderId=${orderId}`)
-            return
-          } else if (data.status === 'cancelled' || data.status === 'timeout') {
-            console.log('[Checkout] Order already cancelled/timeout')
-            setError(data.message || 'Payment failed. Please try again.')
-            setPaymentStage('sending')
-            setProcessing(false)
-            return
-          }
+        const data = JSON.parse(event.data)
+
+        if (data.type === 'heartbeat') return
+
+        if (data.status === 'success') {
+          eventSource.close()
+          console.log('[Checkout] Redirecting to confirmation page')
+          router.push(`/order-confirmation?orderId=${orderId}`)
+        } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
+          setError(data.message || 'Payment failed. Please try again.')
+          setPaymentStage('sending')
+          setProcessing(false)
+          eventSource.close()
+        } else if (data.status === 'timeout') {
+          setError(data.message || 'Payment timed out. Please try again.')
+          setPaymentStage('sending')
+          setProcessing(false)
+          eventSource.close()
         }
       } catch (err) {
-        console.error('[Checkout] Failed to check initial state:', err)
-      }
-
-      // Order still pending, connect SSE for real-time updates
-      console.log('[Checkout] Opening SSE connection for orderId:', orderId)
-      const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
-      eventSourceRef.current = eventSource
-
-      eventSource.onmessage = (event) => {
-        console.log('[Checkout] SSE message received:', event.data)
-        try {
-          const data = JSON.parse(event.data)
-
-          if (data.type === 'heartbeat') return
-
-          if (data.status === 'success') {
-            eventSource.close()
-            console.log('[Checkout] Redirecting to confirmation page')
-            router.push(`/order-confirmation?orderId=${orderId}`)
-          } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
-            setError(data.message || 'Payment failed. Please try again.')
-            setPaymentStage('sending') // Allow retry from payment screen
-            setProcessing(false)
-            eventSource.close()
-          } else if (data.status === 'timeout') {
-            setError(data.message || 'Payment timed out. Please try again.')
-            setPaymentStage('sending')
-            setProcessing(false)
-            eventSource.close()
-          }
-        } catch (err) {
-          console.error('Failed to parse SSE message:', err)
-        }
-      }
-
-      eventSource.onerror = () => {
-        eventSource.close()
-        console.error('[Checkout] SSE error: connection error')
+        console.error('Failed to parse SSE message:', err)
       }
     }
 
-    connectSSE()
+    eventSource.onerror = () => {
+      eventSource.close()
+      console.error('[Checkout] SSE error: connection error')
+    }
 
     return () => {
       if (eventSourceRef.current) {
