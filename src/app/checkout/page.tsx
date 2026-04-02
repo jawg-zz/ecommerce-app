@@ -350,9 +350,11 @@ function CheckoutPageContent() {
             const data = await res.json()
             if (data.status === 'success') {
               router.push(`/order-confirmation?orderId=${orderIdVal}`)
-              return
             } else if (data.status === 'cancelled' || data.status === 'failed') {
-              setError(data.message || 'Payment failed. Please try again.')
+              const errorMessage = data.errorCode
+                ? getMpesaErrorMessage(data.errorCode)
+                : (data.message || 'Payment failed. Please try again.')
+              setError(errorMessage)
               setPaymentStage('sending')
               setProcessing(false)
               return
