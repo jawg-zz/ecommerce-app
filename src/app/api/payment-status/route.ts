@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
 
       startHeartbeat()
       startTimeout()
-      connect()
+      await connect()
 
       request.signal.addEventListener('abort', async () => {
         await cleanup()
