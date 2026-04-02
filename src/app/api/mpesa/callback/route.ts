@@ -220,9 +220,14 @@ export async function POST(request: NextRequest) {
           status: 'cancelled',
           orderId: order.id,
           message: ResultDesc || 'Payment cancelled by user',
+          errorCode: String(ResultCode),
         })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
 
-        await redis.set(`payment-final:${order.id}`, JSON.stringify({ status: 'cancelled' }), 'EX', 86400)
+        await redis.set(`payment-final:${order.id}`, JSON.stringify({ 
+          status: 'cancelled',
+          message: ResultDesc || 'Payment cancelled by user',
+          errorCode: String(ResultCode),
+        }), 'EX', 86400)
       }
 
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })

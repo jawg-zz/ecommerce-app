@@ -321,7 +321,10 @@ function CheckoutPageContent() {
           console.log('[Checkout] Redirecting to confirmation page')
           router.push(`/order-confirmation?orderId=${orderIdVal}`)
         } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
-          setError(data.message || 'Payment failed. Please try again.')
+          const errorMessage = data.errorCode 
+            ? getMpesaErrorMessage(data.errorCode)
+            : (data.message || 'Payment failed. Please try again.')
+          setError(errorMessage)
           setPaymentStage('sending')
           setProcessing(false)
           eventSource.close()

@@ -190,8 +190,37 @@ export const mpesaErrorMessages: Record<string, string> = {
   'CM': 'Invalid phone number format. Please check and try again.',
   'TIMEOUT': 'The request timed out. Please try again.',
   'CANCEL': 'Payment was cancelled.',
+  '2001': 'Wrong PIN entered. Please try again with the correct M-Pesa PIN.',
+  '1032': 'Payment cancelled by user.',
+  '1': 'Insufficient balance. Please top up your M-Pesa account.',
+  '17': 'Wrong PIN entered too many times. Please try again later.',
+  '26': 'System busy. Please try again in a moment.',
+}
+
+const mpesaResultCodeMessages: Record<number, string> = {
+  0: 'Payment successful',
+  1: 'Insufficient balance. Please top up your M-Pesa account.',
+  2: 'Invalid MSISDN. Please check your phone number.',
+  3: 'Invalid amount. Please try again.',
+  4: 'Invalid reference. Please try again.',
+  5: 'Invalid callback URL. Contact support.',
+  17: 'Wrong PIN entered too many times. Please try again later.',
+  26: 'System busy. Please try again in a moment.',
+  1032: 'Payment cancelled by user.',
+  1037: 'Session timeout. Please try again.',
+  2001: 'Wrong PIN entered. Please try again with the correct M-Pesa PIN.',
+  2002: 'Invalid request. Please try again.',
+  2010: 'M-Pesa account blocked. Please contact Safaricom.',
+  9999: 'System error. Please try again later.',
 }
 
 export function getMpesaErrorMessage(errorCode: string): string {
-  return mpesaErrorMessages[errorCode] || 'Payment failed. Please try again or contact support.'
+  if (mpesaErrorMessages[errorCode]) {
+    return mpesaErrorMessages[errorCode]
+  }
+  const numericCode = parseInt(errorCode, 10)
+  if (!isNaN(numericCode) && mpesaResultCodeMessages[numericCode]) {
+    return mpesaResultCodeMessages[numericCode]
+  }
+  return 'Payment failed. Please try again or contact support.'
 }

@@ -92,11 +92,16 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
       await redis.publish(`payment-status:${orderId}`, JSON.stringify({
         status: 'cancelled',
         orderId,
-        message: 'Payment status updated',
+        message: paymentStatus.resultDesc || 'Payment status updated',
+        errorCode: paymentStatus.resultCode,
       }))
       console.log('[Worker] Redis publish complete')
 
-      await redis.set(`payment-final:${orderId}`, JSON.stringify({ status: 'cancelled' }), 'EX', 86400)
+      await redis.set(`payment-final:${orderId}`, JSON.stringify({ 
+        status: 'cancelled',
+        message: paymentStatus.resultDesc || 'Payment status updated',
+        errorCode: paymentStatus.resultCode,
+      }), 'EX', 86400)
 
       logInfo('Order cancelled and stock restored via job', { orderId })
     } else {
