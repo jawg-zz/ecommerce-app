@@ -307,9 +307,34 @@ function CheckoutPageContent() {
       }
     }
 
-    eventSource.onerror = () => {
+    eventSource.onerror = async () => {
       eventSource.close()
-      console.error('[Checkout] SSE error: connection error')
+      console.error('[Checkout] SSE error: connection error, checking final status')
+      
+      const orderId = retryDataRef.current?.orderId
+      if (orderId) {
+        try {
+          const res = await fetch(`/api/payment-final?orderId=${orderId}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.status === 'success') {
+              router.push(`/order-confirmation?orderId=${orderId}`)
+              return
+            } else if (data.status === 'cancelled' || data.status === 'failed') {
+              setError(data.message || 'Payment failed. Please try again.')
+              setPaymentStage('sending')
+              setProcessing(false)
+              return
+            }
+          }
+        } catch (e) {
+          console.error('Failed to check final status:', e)
+        }
+      }
+      
+      setError('Connection lost. Please check your payment status.')
+      setPaymentStage('sending')
+      setProcessing(false)
     }
 
     return () => {
@@ -476,7 +501,6 @@ function CheckoutPageContent() {
       const data = await res.json()
 
       if (!res.ok) {
-        // Show error on payment screen, not shipping form
         setCheckoutRequestId('')
         if (data.errorCode) {
           setError(getMpesaErrorMessage(data.errorCode))
@@ -485,25 +509,15 @@ function CheckoutPageContent() {
         }
         setProcessing(false)
         setPaymentStage('sending')
-        // Store orderId even on failure so we can retry
         if (data.orderId) {
           retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
         }
         return
       }
 
-      if (!data.checkoutRequestId || !data.orderId) {
-        setCheckoutRequestId('')
-        setError('Invalid checkout response')
-        setProcessing(false)
-        setPaymentStage('sending')
-        return
-      }
-
-      // Success - now set waiting state
+      // Only set after success
       setCheckoutRequestId(data.checkoutRequestId)
       setPaymentStage('waiting')
-      console.log('[Checkout] STK push success, orderId:', data.orderId)
       retryDataRef.current = { shippingAddress: address, phone: phoneNumber, orderId: data.orderId }
     } catch (err) {
       if (isNetworkError(err)) {

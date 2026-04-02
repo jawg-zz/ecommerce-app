@@ -5,7 +5,8 @@ import { sendSSEMessage } from '@/lib/sse'
 import { prisma } from '@/lib/prisma'
 import { logInfo, logError } from '@/lib/logger'
 
-const SSE_TIMEOUT_MS = 2 * 60 * 1000
+const PAYMENT_TIMEOUT_MS = 10 * 60 * 1000
+const SSE_TIMEOUT_MS = PAYMENT_TIMEOUT_MS
 const HEARTBEAT_INTERVAL_MS = 15000
 
 export async function GET(request: NextRequest) {
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(encoder.encode(sendSSEMessage({
             status: 'timeout',
             orderId,
-            message: 'Payment wait timed out. Please refresh to check status.',
+            message: 'Connection timed out, but your payment may still be processing. Please check your M-Pesa messages.',
           })))
           controller.close()
           await cleanup()
@@ -88,7 +89,6 @@ export async function GET(request: NextRequest) {
             logError('SSE Redis subscriber error', { error: String(err), orderId })
           })
 
-          logInfo('SSE subscribing to channel', { channel: `payment-status:${orderId}` })
           await subscriber.subscribe(`payment-status:${orderId}`)
 
           subscriber.on('message', async (channel: string, message: string) => {
@@ -96,9 +96,7 @@ export async function GET(request: NextRequest) {
             if (channel !== `payment-status:${orderId}`) return
 
             try {
-              logInfo('SSE Redis message received', { message, orderId })
               const data = JSON.parse(message)
-              logInfo('SSE sending event to frontend', { data, orderId })
               controller.enqueue(encoder.encode(sendSSEMessage(data)))
               controller.close()
               await cleanup()
@@ -121,7 +119,6 @@ export async function GET(request: NextRequest) {
 
       startHeartbeat()
       startTimeout()
-      logInfo('SSE connection opened', { orderId })
       connect()
 
       request.signal.addEventListener('abort', async () => {

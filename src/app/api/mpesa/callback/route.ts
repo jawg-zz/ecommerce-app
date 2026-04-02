@@ -86,120 +86,149 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
     }
 
-    if (order.status === 'PAID') {
-      logInfo('Order already paid', { orderId: order.id, CheckoutRequestID })
+    const lock = await (redis as any).set(`lock:payment:${order.id}`, '1', 'NX', 'EX', 30)
+    if (!lock) {
+      logInfo('Payment already being processed', { orderId: order.id, CheckoutRequestID })
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
     }
 
-    if (order.status === 'CANCELLED') {
-      logInfo('Order already cancelled, ignoring callback', { orderId: order.id, CheckoutRequestID })
-      return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
-    }
-
-    if (ResultCode === 0) {
-      const metadata = CallbackMetadata?.Item || []
-      const amount = metadata.find((item: any) => item.Name === 'Amount')?.Value
-      const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
-      const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
-
-      const receivedAmount = Number(amount)
-      const expectedAmount = Number(order.total)
-      const tolerance = expectedAmount * 0.01
-      
-      if (!amount || receivedAmount <= 0 || Math.abs(receivedAmount - expectedAmount) > tolerance) {
-        logError('Payment amount mismatch', {
-          orderId: order.id,
-          expected: expectedAmount,
-          received: receivedAmount,
-          tolerance: tolerance,
-        })
+    try {
+      if (order.status === 'PAID') {
+        logInfo('Order already paid', { orderId: order.id, CheckoutRequestID })
         return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
       }
 
-      const orderWithItems = await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'PAID',
-          mpesaCheckoutRequestId: CheckoutRequestID,
-          reference: mpesaReceiptNumber,
-        },
-        include: {
-          user: true,
-          items: {
-            include: {
-              product: true,
-            },
-          },
-        },
-      })
-
-      await clearCart(order.userId)
-
-      await cancelPaymentCheck(order.id)
-
-      logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'success' })
-      await redis.publish(`payment-status:${order.id}`, JSON.stringify({
-        status: 'success',
-        orderId: order.id,
-        message: 'Payment confirmed',
-      })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
-      logInfo('Redis publish complete', { orderId: order.id })
-
-      logInfo('ORDER CONFIRMATION - Payment successful', {
-        orderId: order.id,
-        orderNumber: order.id.slice(0, 8),
-        amount: order.total,
-        amountPaid: Number(amount),
-        mpesaReceiptNumber,
-        customerPhone: phoneNumber,
-        customerName: orderWithItems.user.name,
-        customerEmail: orderWithItems.user.email,
-        items: orderWithItems.items.map(item => ({
-          productName: item.product.name,
-          quantity: item.quantity,
-          unitPrice: Number(item.price),
-          subtotal: Number(item.price) * item.quantity,
-        })),
-        totalItems: orderWithItems.items.reduce((sum, item) => sum + item.quantity, 0),
-      })
-      
-      // TODO: Integrate with email/SMS service to send order confirmation
-      // - Send email to customer with order details
-      // - Send SMS notification with order summary
-    } else {
-      const orderWithItems = await prisma.order.update({
-        where: { id: order.id },
-        data: { 
-          status: 'CANCELLED',
-          cancelReason: ResultDesc || 'Payment cancelled by user'
-        },
-        include: { items: true },
-      })
-
-      for (const item of orderWithItems.items) {
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
-        })
+      if (order.status === 'CANCELLED') {
+        logInfo('Order already cancelled, ignoring callback', { orderId: order.id, CheckoutRequestID })
+        return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
       }
 
-      logInfo('Payment failed - stock restored', {
-        orderId: order.id,
-        ResultCode,
-        ResultDesc,
-      })
+      if (ResultCode === 0) {
+        const metadata = CallbackMetadata?.Item || []
+        const amount = metadata.find((item: any) => item.Name === 'Amount')?.Value
+        const mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value
+        const phoneNumber = metadata.find((item: any) => item.Name === 'PhoneNumber')?.Value
 
-      await cancelPaymentCheck(order.id)
+        const existingWithReceipt = await prisma.order.findFirst({
+          where: { reference: String(mpesaReceiptNumber) }
+        })
+        if (existingWithReceipt && existingWithReceipt.id !== order.id) {
+          logInfo('Duplicate callback with same receipt', { mpesaReceiptNumber, orderId: order.id })
+          return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
+        }
 
-      logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'cancelled' })
-      await redis.publish(`payment-status:${order.id}`, JSON.stringify({
-        status: 'cancelled',
-        orderId: order.id,
-        message: ResultDesc || 'Payment cancelled by user',
-      })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
+        const receivedAmount = Number(amount)
+        const expectedAmount = Number(order.total)
+        const tolerance = expectedAmount * 0.01
+        
+        if (!amount || receivedAmount <= 0 || Math.abs(receivedAmount - expectedAmount) > tolerance) {
+          logError('Payment amount mismatch', {
+            orderId: order.id,
+            expected: expectedAmount,
+            received: receivedAmount,
+            tolerance: tolerance,
+          })
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { 
+              status: 'CANCELLED',
+              cancelReason: `Payment amount mismatch: expected ${expectedAmount}, received ${receivedAmount}` 
+            }
+          })
+          return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
+        }
+
+        const orderWithItems = await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'PAID',
+            mpesaCheckoutRequestId: CheckoutRequestID,
+            reference: mpesaReceiptNumber,
+          },
+          include: {
+            user: true,
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        })
+
+        await clearCart(order.userId)
+
+        await cancelPaymentCheck(order.id)
+
+        logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'success' })
+        await redis.publish(`payment-status:${order.id}`, JSON.stringify({
+          status: 'success',
+          orderId: order.id,
+          message: 'Payment confirmed',
+        })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
+
+        await redis.set(`payment-final:${order.id}`, JSON.stringify({ status: 'success' }), 'EX', 86400)
+        logInfo('Redis publish complete', { orderId: order.id })
+
+        logInfo('ORDER CONFIRMATION - Payment successful', {
+          orderId: order.id,
+          orderNumber: order.id.slice(0, 8),
+          amount: order.total,
+          amountPaid: Number(amount),
+          mpesaReceiptNumber,
+          customerPhone: phoneNumber,
+          customerName: orderWithItems.user.name,
+          customerEmail: orderWithItems.user.email,
+          items: orderWithItems.items.map(item => ({
+            productName: item.product.name,
+            quantity: item.quantity,
+            unitPrice: Number(item.price),
+            subtotal: Number(item.price) * item.quantity,
+          })),
+          totalItems: orderWithItems.items.reduce((sum, item) => sum + item.quantity, 0),
+        })
+        
+        // TODO: Integrate with email/SMS service to send order confirmation
+        // - Send email to customer with order details
+        // - Send SMS notification with order summary
+      } else {
+        const orderWithItems = await prisma.order.update({
+          where: { id: order.id },
+          data: { 
+            status: 'CANCELLED',
+            cancelReason: ResultDesc || 'Payment cancelled by user'
+          },
+          include: { items: true },
+        })
+
+        for (const item of orderWithItems.items) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+
+        logInfo('Payment failed - stock restored', {
+          orderId: order.id,
+          ResultCode,
+          ResultDesc,
+        })
+
+        await cancelPaymentCheck(order.id)
+
+        logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'cancelled' })
+        await redis.publish(`payment-status:${order.id}`, JSON.stringify({
+          status: 'cancelled',
+          orderId: order.id,
+          message: ResultDesc || 'Payment cancelled by user',
+        })).catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
+
+        await redis.set(`payment-final:${order.id}`, JSON.stringify({ status: 'cancelled' }), 'EX', 86400)
+      }
+
+      return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
+    } finally {
+      await redis.del(`lock:payment:${order.id}`)
     }
-
-    return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   } catch (error) {
     logError('M-Pesa callback error', { error: String(error), ip: clientIP })
     logCallbackError(error instanceof Error ? error : new Error(String(error)))

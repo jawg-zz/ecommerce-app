@@ -14,32 +14,38 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
 
   logInfo('Processing payment check job', { orderId })
 
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { items: true, user: true },
-  })
-
-  if (!order) {
-    logError('Order not found for payment check', { orderId })
-    return
-  }
-
-  if (order.status === 'PAID') {
-    logInfo('Order already paid, skipping check', { orderId })
-    return
-  }
-
-  if (order.status === 'CANCELLED') {
-    logInfo('Order already cancelled, skipping check', { orderId })
-    return
-  }
-
-  if (!order.mpesaCheckoutRequestId) {
-    logInfo('No checkout request ID, skipping check', { orderId })
+  const lock = await (redis as any).set(`lock:payment:${orderId}`, '1', 'NX', 'EX', 30)
+  if (!lock) {
+    logInfo('Payment already being processed, skipping', { orderId })
     return
   }
 
   try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, user: true },
+    })
+
+    if (!order) {
+      logError('Order not found for payment check', { orderId })
+      return
+    }
+
+    if (order.status === 'PAID') {
+      logInfo('Order already paid, skipping check', { orderId })
+      return
+    }
+
+    if (order.status === 'CANCELLED') {
+      logInfo('Order already cancelled, skipping check', { orderId })
+      return
+    }
+
+    if (!order.mpesaCheckoutRequestId) {
+      logInfo('No checkout request ID, skipping check', { orderId })
+      return
+    }
+
     const paymentStatus = await querySTKStatus(order.mpesaCheckoutRequestId)
 
     if (paymentStatus.status === 'success') {
@@ -59,6 +65,8 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
         message: 'Payment confirmed',
       }))
       console.log('[Worker] Redis publish complete')
+
+      await redis.set(`payment-final:${orderId}`, JSON.stringify({ status: 'success' }), 'EX', 86400)
 
       logInfo('Order updated to PAID via job', { orderId })
     } else if (paymentStatus.status === 'failed') {
@@ -88,6 +96,8 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
       }))
       console.log('[Worker] Redis publish complete')
 
+      await redis.set(`payment-final:${orderId}`, JSON.stringify({ status: 'cancelled' }), 'EX', 86400)
+
       logInfo('Order cancelled and stock restored via job', { orderId })
     } else {
       logInfo('Payment still pending, no action needed', { orderId })
@@ -95,6 +105,8 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
   } catch (error) {
     logError('Error in payment check job', { orderId, error: String(error) })
     throw error
+  } finally {
+    await redis.del(`lock:payment:${orderId}`)
   }
 }
 

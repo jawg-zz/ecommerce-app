@@ -1,0 +1,4 @@
+export const PAYMENT_TIMEOUT_MS = 10 * 60 * 1000
+export const SSE_TIMEOUT_MS = PAYMENT_TIMEOUT_MS
+export const PAYMENT_CHECK_DELAY_MS = 2 * 60 * 1000
+export const HEARTBEAT_INTERVAL_MS = 15000

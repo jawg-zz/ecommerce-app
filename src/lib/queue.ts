@@ -23,7 +23,9 @@ export async function schedulePaymentCheck(orderId: string, delay: number): Prom
       jobId: `payment-check-${orderId}`,
       delay,
       removeOnComplete: true,
-      removeOnFail: 100,
+      removeOnFail: { count: 3, age: 3600 },
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
     }
   )
 }
