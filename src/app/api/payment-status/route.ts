@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   }
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       const encoder = new TextEncoder()
       let aborted = false
       let heartbeatInterval: ReturnType<typeof setInterval> | null = null
