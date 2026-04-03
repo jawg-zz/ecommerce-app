@@ -103,7 +103,12 @@ export async function GET(request: NextRequest) {
               const data = JSON.parse(message)
               console.log('[SSE] Enqueuing message to client:', data)
               controller.enqueue(encoder.encode(sendSSEMessage(data)))
-              console.log('[SSE] Message enqueued, closing stream')
+              console.log('[SSE] Message enqueued, waiting for flush...')
+
+              // Wait a bit to ensure the message is flushed to the client
+              await new Promise(resolve => setTimeout(resolve, 100))
+
+              console.log('[SSE] Closing stream')
               controller.close()
               await cleanup()
             } catch (e) {
