@@ -12,8 +12,8 @@ const ALLOWED_FILE_TYPES = [
 async function validateFileMagicBytes(buffer: Buffer): Promise<{ valid: boolean; mime: string | null; error: string | null }> {
   try {
     // Dynamic import to avoid webpack bundling issues with ESM-only package
-    const { fromBuffer } = await import('file-type')
-    const result = await fromBuffer(buffer)
+    const fileType = await import('file-type')
+    const result = await fileType.fromBuffer(buffer)
     if (!result) {
       return { valid: false, mime: null, error: 'Unable to determine file type from content' }
     }
