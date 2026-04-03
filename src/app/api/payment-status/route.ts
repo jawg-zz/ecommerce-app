@@ -103,14 +103,13 @@ export async function GET(request: NextRequest) {
               const data = JSON.parse(message)
               console.log('[SSE] Enqueuing message to client:', data)
               controller.enqueue(encoder.encode(sendSSEMessage(data)))
-              console.log('[SSE] Message enqueued, waiting for flush...')
+              console.log('[SSE] Message enqueued')
 
-              // Wait a bit to ensure the message is flushed to the client
-              await new Promise(resolve => setTimeout(resolve, 100))
+              // Don't close here - let the client close after receiving
+              // The cleanup will happen when the client closes the connection
+              // or when the timeout fires
 
-              console.log('[SSE] Closing stream')
-              controller.close()
-              await cleanup()
+              await cleanup() // Clean up Redis subscriber but keep stream open
             } catch (e) {
               logError('SSE error parsing message', { error: String(e), orderId })
             }
