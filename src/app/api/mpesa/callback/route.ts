@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { redis, redisPublisher } from '@/lib/redis'
+import { redis } from '@/lib/redis'
 import { logInfo, logError } from '@/lib/logger'
 import { logCallbackError } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
@@ -159,19 +159,6 @@ export async function POST(request: NextRequest) {
 
         await cancelPaymentCheck(order.id)
 
-        logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'success' })
-        console.log('[Callback] Publishing to Redis:', order.id, 'success')
-        console.log('[Callback] Using publisher client, status:', redisPublisher.status)
-        await redisPublisher.publish(`payment-status:${order.id}`, JSON.stringify({
-          status: 'success',
-          orderId: order.id,
-          message: 'Payment confirmed',
-        })).then(() => console.log('[Callback] Redis publish completed successfully'))
-          .catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
-
-        await redis.set(`payment-final:${order.id}`, JSON.stringify({ status: 'success' }), 'EX', 86400)
-        logInfo('Redis publish complete', { orderId: order.id })
-
         logInfo('ORDER CONFIRMATION - Payment successful', {
           orderId: order.id,
           orderNumber: order.id.slice(0, 8),
@@ -198,7 +185,7 @@ export async function POST(request: NextRequest) {
           where: { id: order.id },
           data: { 
             status: 'CANCELLED',
-            cancelReason: ResultDesc || 'Payment cancelled by user'
+            cancelReason: `ResultCode: ${ResultCode} - ${ResultDesc || 'Payment cancelled by user'}`
           },
           include: { items: true },
         })
@@ -217,23 +204,6 @@ export async function POST(request: NextRequest) {
         })
 
         await cancelPaymentCheck(order.id)
-
-        logInfo('Publishing payment status to Redis', { orderId: order.id, status: 'cancelled' })
-        console.log('[Callback] Publishing to Redis:', order.id, 'cancelled')
-        console.log('[Callback] Using publisher client, status:', redisPublisher.status)
-        await redisPublisher.publish(`payment-status:${order.id}`, JSON.stringify({
-          status: 'cancelled',
-          orderId: order.id,
-          message: ResultDesc || 'Payment cancelled by user',
-          errorCode: String(ResultCode),
-        })).then(() => console.log('[Callback] Redis publish completed successfully'))
-          .catch(err => logError('Redis publish failed', { error: String(err), orderId: order.id }))
-
-        await redis.set(`payment-final:${order.id}`, JSON.stringify({ 
-          status: 'cancelled',
-          message: ResultDesc || 'Payment cancelled by user',
-          errorCode: String(ResultCode),
-        }), 'EX', 86400)
       }
 
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })

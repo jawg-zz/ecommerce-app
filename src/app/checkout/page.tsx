@@ -213,8 +213,6 @@ function CheckoutPageContent() {
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const eventSourceCreated = useRef(false)
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     name: '',
@@ -275,115 +273,62 @@ function CheckoutPageContent() {
     }
   }, [currentStep])
 
-  // Connect to SSE for real-time payment status updates
+  // Poll for payment status
   useEffect(() => {
     if (currentStep !== 'payment' || !orderId) return
-    if (eventSourceCreated.current) return
-
-    eventSourceCreated.current = true
-    const orderIdVal = orderId
-    let connectionTimeout: NodeJS.Timeout
-
-    console.log('[Checkout] Opening SSE connection for orderId:', orderId)
-    const eventSource = new EventSource(`/api/payment-status?orderId=${orderId}`)
-    eventSourceRef.current = eventSource
-
-    connectionTimeout = setTimeout(async () => {
-      console.log('[Checkout] SSE connection timeout, checking final status')
-      eventSource.close()
+    
+    let pollCount = 0
+    const maxPolls = 60
+    
+    const pollInterval = setInterval(async () => {
+      pollCount++
+      
       try {
-        const res = await fetch(`/api/payment-final?orderId=${orderIdVal}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.status === 'success') {
-            router.push(`/order-confirmation?orderId=${orderIdVal}`)
-          } else if (data.status === 'cancelled' || data.status === 'failed') {
-            setError(data.message || 'Payment failed. Please try again.')
+        const res = await fetch(`/api/payment-status/${orderId}`)
+        if (!res.ok) {
+          if (pollCount >= maxPolls) {
+            clearInterval(pollInterval)
+            setError('Connection timeout. Please check your payment status.')
             setPaymentStage('sending')
             setProcessing(false)
           }
+          return
         }
-      } catch (e) {
-        console.error('Failed to check final status:', e)
-        setError('Connection timeout. Please check your payment status.')
-        setPaymentStage('sending')
-        setProcessing(false)
-      }
-    }, 30000)
-
-    eventSource.onmessage = (event) => {
-      clearTimeout(connectionTimeout)
-      console.log('[Checkout] SSE message received:', event.data)
-      try {
-        const data = JSON.parse(event.data)
-
-        if (data.type === 'heartbeat') return
-
-        if (data.status === 'success') {
-          eventSource.close()
-          console.log('[Checkout] Redirecting to confirmation page')
-          router.push(`/order-confirmation?orderId=${orderIdVal}`)
-        } else if (data.status === 'cancelled' || data.status === 'failed' || data.status === 'error') {
+        
+        const data = await res.json()
+        
+        if (data.status === 'paid') {
+          clearInterval(pollInterval)
+          router.push(`/order-confirmation?orderId=${orderId}`)
+        } else if (data.status === 'cancelled' || data.status === 'failed') {
+          clearInterval(pollInterval)
           const errorMessage = data.errorCode 
             ? getMpesaErrorMessage(data.errorCode)
             : (data.message || 'Payment failed. Please try again.')
           setError(errorMessage)
           setPaymentStage('sending')
           setProcessing(false)
-          eventSource.close()
-        } else if (data.status === 'timeout') {
-          setError(data.message || 'Payment timed out. Please try again.')
+        }
+        
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval)
+          setError('Payment timed out. Please check your M-Pesa messages.')
           setPaymentStage('sending')
           setProcessing(false)
-          eventSource.close()
         }
       } catch (err) {
-        console.error('Failed to parse SSE message:', err)
-      }
-    }
-
-    eventSource.onerror = async () => {
-      eventSource.close()
-      console.error('[Checkout] SSE error: connection error, checking final status')
-      
-      if (orderIdVal) {
-        try {
-          const res = await fetch(`/api/payment-final?orderId=${orderIdVal}`)
-          if (res.ok) {
-            const data = await res.json()
-            if (data.status === 'success') {
-              router.push(`/order-confirmation?orderId=${orderIdVal}`)
-            } else if (data.status === 'cancelled' || data.status === 'failed') {
-              const errorMessage = data.errorCode
-                ? getMpesaErrorMessage(data.errorCode)
-                : (data.message || 'Payment failed. Please try again.')
-              setError(errorMessage)
-              setPaymentStage('sending')
-              setProcessing(false)
-              return
-            }
-          }
-        } catch (e) {
-          console.error('Failed to check final status:', e)
+        console.error('Failed to check payment status:', err)
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval)
+          setError('Connection error. Please check your payment status.')
+          setPaymentStage('sending')
+          setProcessing(false)
         }
       }
-      
-      setError('Connection lost. Please check your payment status.')
-      setPaymentStage('sending')
-      setProcessing(false)
-    }
-
-    return () => {
-      clearTimeout(connectionTimeout)
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-        eventSourceRef.current = null
-      }
-      if (currentStep !== 'payment') {
-        eventSourceCreated.current = false
-      }
-    }
-  }, [currentStep, router, refreshCart, orderId])
+    }, 1000)
+    
+    return () => clearInterval(pollInterval)
+  }, [currentStep, orderId, router])
 
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
