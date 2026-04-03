@@ -91,6 +91,9 @@ export async function GET(request: NextRequest) {
             logError('SSE Redis subscriber error', { error: String(err), orderId })
           })
 
+          await subscriber.subscribe(`payment-status:${orderId}`)
+          console.log('[SSE] Subscribed to channel:', `payment-status:${orderId}`)
+
           subscriber.on('message', async (channel: string, message: string) => {
             console.log('[SSE] Received message from Redis:', channel, message)
             if (aborted) return
@@ -107,9 +110,6 @@ export async function GET(request: NextRequest) {
               logError('SSE error parsing message', { error: String(e), orderId })
             }
           })
-
-          await subscriber.subscribe(`payment-status:${orderId}`)
-          console.log('[SSE] Subscribed to channel:', `payment-status:${orderId}`)
         } catch (e) {
           logError('SSE failed to setup Redis subscriber', { error: String(e), orderId })
           if (!aborted) {
