@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { uploadImage } from '@/lib/cloudinary'
-import { fromBuffer } from 'file-type'
 import { logError } from '@/lib/logger'
 
 const ALLOWED_FILE_TYPES = [
@@ -12,6 +11,8 @@ const ALLOWED_FILE_TYPES = [
 
 async function validateFileMagicBytes(buffer: Buffer): Promise<{ valid: boolean; mime: string | null; error: string | null }> {
   try {
+    // Dynamic import to avoid webpack bundling issues with ESM-only package
+    const { fromBuffer } = await import('file-type')
     const result = await fromBuffer(buffer)
     if (!result) {
       return { valid: false, mime: null, error: 'Unable to determine file type from content' }
