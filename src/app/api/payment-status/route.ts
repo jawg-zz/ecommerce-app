@@ -32,6 +32,9 @@ export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder()
+
+      controller.enqueue(encoder.encode(': connected\n\n'))
+
       let aborted = false
       let heartbeatInterval: ReturnType<typeof setInterval> | null = null
       let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -105,6 +108,9 @@ export async function GET(request: NextRequest) {
               controller.enqueue(encoder.encode(sendSSEMessage(data)))
               console.log('[SSE] Message enqueued')
 
+              controller.enqueue(encoder.encode(': flush\n\n'))
+              console.log('[SSE] Flush comment sent')
+
               // Don't close here - let the client close after receiving
               // The cleanup will happen when the client closes the connection
               // or when the timeout fires
@@ -151,8 +157,9 @@ export async function GET(request: NextRequest) {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
 }
