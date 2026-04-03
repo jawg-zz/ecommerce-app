@@ -58,13 +58,13 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
 
       await clearCart(order.userId)
 
-      console.log('[Worker] Publishing to Redis for orderId:', orderId)
+      logInfo('Publishing to Redis for order', { orderId })
       await redis.publish(`payment-status:${orderId}`, JSON.stringify({
         status: 'success',
         orderId,
         message: 'Payment confirmed',
       }))
-      console.log('[Worker] Redis publish complete')
+      logInfo('Redis publish complete', { orderId })
 
       await redis.set(`payment-final:${orderId}`, JSON.stringify({ status: 'success' }), 'EX', 86400)
 
@@ -88,14 +88,14 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
 
       await clearCart(order.userId)
 
-      console.log('[Worker] Publishing to Redis for orderId:', orderId)
+      logInfo('Publishing to Redis for order', { orderId })
       await redis.publish(`payment-status:${orderId}`, JSON.stringify({
         status: 'cancelled',
         orderId,
         message: paymentStatus.resultDesc || 'Payment status updated',
         errorCode: paymentStatus.resultCode,
       }))
-      console.log('[Worker] Redis publish complete')
+      logInfo('Redis publish complete', { orderId })
 
       await redis.set(`payment-final:${orderId}`, JSON.stringify({ 
         status: 'cancelled',

@@ -7,12 +7,12 @@ import { logError } from '@/lib/logger'
 
 const addToCartSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.number().int().min(1).default(1),
+  quantity: z.number().int().min(1).max(99).default(1),
 })
 
 const updateCartSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.number().int().min(0),
+  quantity: z.number().int().min(0).max(99),
 })
 
 export async function GET() {
@@ -63,6 +63,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (error instanceof Error) {
+      if (error.message.includes('Cart cannot exceed') || error.message.includes('Maximum quantity')) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
+    }
     logError('Add to cart error:', { error: String(error) })
     return NextResponse.json(
       { error: 'Failed to add item to cart. Please try again.' },
@@ -109,6 +114,11 @@ export async function PUT(request: NextRequest) {
         { error: 'Invalid input', details: error.errors },
         { status: 400 }
       )
+    }
+    if (error instanceof Error) {
+      if (error.message.includes('Maximum quantity')) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
     }
     logError('Update cart error:', { error: String(error) })
     return NextResponse.json(

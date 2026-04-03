@@ -58,6 +58,8 @@ model Order {
   @@index([status, createdAt])
   @@index([mpesaCheckoutRequestId])
   @@index([userId, status])
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt, userId])
 }
 
 model OrderItem {

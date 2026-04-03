@@ -1,4 +1,5 @@
 import { redis } from './redis'
+import { logError } from './logger'
 
 interface RateLimitResult {
   success: boolean
@@ -85,7 +86,7 @@ class SimpleRateLimiter {
         pending: Promise.resolve(),
       }
     } catch (error) {
-      console.error('[RateLimit] Redis error:', error)
+      logError('Rate limit Redis error', { error: String(error) })
       return {
         success: true,
         limit: this.maxRequests,

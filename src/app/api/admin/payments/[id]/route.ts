@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logError } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -72,7 +73,7 @@ export async function GET(
       updatedAt: order.updatedAt.toISOString(),
     })
   } catch (error) {
-    console.error('Get transaction error:', error)
+    logError('Get transaction error', { error: String(error) })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

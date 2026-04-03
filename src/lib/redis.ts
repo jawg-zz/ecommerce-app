@@ -1,5 +1,6 @@
 import Redis from 'ioredis'
 import { env } from './env'
+import { logError, logInfo } from './logger'
 
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined
@@ -15,21 +16,21 @@ function createRedis() {
       if (times > 3) return null
       return Math.min(times * 100, 3000)
     },
-    maxRetriesPerRequest: null, // Required for BullMQ
+    maxRetriesPerRequest: null,
     enableReadyCheck: true,
     lazyConnect: false,
   })
 
   redisInstance.on('error', (err) => {
-    console.error('[Redis] Connection error:', err)
+    logError('Redis connection error', { error: String(err) })
   })
 
   redisInstance.on('connect', () => {
-    console.log('[Redis] Connected')
+    logInfo('Redis connected')
   })
 
   redisInstance.on('ready', () => {
-    console.log('[Redis] Ready')
+    logInfo('Redis ready')
   })
 
   return redisInstance
@@ -49,15 +50,15 @@ function createRedisPublisher() {
   })
 
   redisInstance.on('error', (err) => {
-    console.error('[Redis Publisher] Connection error:', err)
+    logError('Redis Publisher connection error', { error: String(err) })
   })
 
   redisInstance.on('connect', () => {
-    console.log('[Redis Publisher] Connected')
+    logInfo('Redis Publisher connected')
   })
 
   redisInstance.on('ready', () => {
-    console.log('[Redis Publisher] Ready')
+    logInfo('Redis Publisher ready')
   })
 
   return redisInstance

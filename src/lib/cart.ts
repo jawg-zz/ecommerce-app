@@ -81,12 +81,16 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
 }
 
 const CART_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
+const MAX_CART_ITEMS = 100
+const MAX_QUANTITY_PER_ITEM = 99
 
 const ADD_TO_CART_SCRIPT = `
 local key = KEYS[1]
 local productId = ARGV[1]
 local quantity = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
+local maxItems = tonumber(ARGV[4])
+local maxQuantity = tonumber(ARGV[5])
 
 local cartData = redis.call('GET', key)
 local items = {}
@@ -96,15 +100,24 @@ if cartData then
 end
 
 local found = false
+local currentTotalItems = 0
 for i, item in ipairs(items) do
+  currentTotalItems = currentTotalItems + item.quantity
   if item.productId == productId then
-    item.quantity = item.quantity + quantity
+    local newQty = item.quantity + quantity
+    if newQty > maxQuantity then
+      return 'QUANTITY_EXCEEDS_MAX'
+    end
+    item.quantity = newQty
     found = true
     break
   end
 end
 
 if not found then
+  if #items >= maxItems then
+    return 'CART_FULL'
+  end
   table.insert(items, {productId = productId, quantity = quantity})
 end
 
@@ -114,8 +127,19 @@ return 'OK'
 `
 
 export async function addToCart(userId: string, productId: string, quantity: number = 1): Promise<void> {
+  if (quantity > MAX_QUANTITY_PER_ITEM) {
+    throw new Error(`Maximum quantity per item is ${MAX_QUANTITY_PER_ITEM}`)
+  }
+  
   const key = getCartKey(userId)
-  await redis.eval(ADD_TO_CART_SCRIPT, 1, key, productId, quantity, CART_TTL_SECONDS)
+  const result = await redis.eval(ADD_TO_CART_SCRIPT, 1, key, productId, quantity, CART_TTL_SECONDS, MAX_CART_ITEMS, MAX_QUANTITY_PER_ITEM)
+  
+  if (result === 'CART_FULL') {
+    throw new Error(`Cart cannot exceed ${MAX_CART_ITEMS} items`)
+  }
+  if (result === 'QUANTITY_EXCEEDS_MAX') {
+    throw new Error(`Maximum quantity per item is ${MAX_QUANTITY_PER_ITEM}`)
+  }
 }
 
 const UPDATE_CART_ITEM_SCRIPT = `
@@ -123,6 +147,7 @@ local key = KEYS[1]
 local productId = ARGV[1]
 local quantity = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
+local maxQuantity = tonumber(ARGV[4])
 
 local cartData = redis.call('GET', key)
 if not cartData then
@@ -130,6 +155,10 @@ if not cartData then
 end
 
 local items = cjson.decode(cartData)
+
+if quantity > maxQuantity then
+  return 'QUANTITY_EXCEEDS_MAX'
+end
 
 if quantity <= 0 then
   local newItems = {}
@@ -156,8 +185,16 @@ return 'OK'
 `
 
 export async function updateCartItem(userId: string, productId: string, quantity: number): Promise<void> {
+  if (quantity > MAX_QUANTITY_PER_ITEM) {
+    throw new Error(`Maximum quantity per item is ${MAX_QUANTITY_PER_ITEM}`)
+  }
+  
   const key = getCartKey(userId)
-  await redis.eval(UPDATE_CART_ITEM_SCRIPT, 1, key, productId, quantity, CART_TTL_SECONDS)
+  const result = await redis.eval(UPDATE_CART_ITEM_SCRIPT, 1, key, productId, quantity, CART_TTL_SECONDS, MAX_QUANTITY_PER_ITEM)
+  
+  if (result === 'QUANTITY_EXCEEDS_MAX') {
+    throw new Error(`Maximum quantity per item is ${MAX_QUANTITY_PER_ITEM}`)
+  }
 }
 
 const REMOVE_FROM_CART_SCRIPT = `

@@ -1,5 +1,5 @@
 import { startWorkers, stopWorkers } from './lib/workers'
-import { logInfo } from './lib/logger'
+import { logInfo, logError } from './lib/logger'
 import { setWorkerStopHandler, registerShutdownHandlers } from './lib/shutdown'
 
 registerShutdownHandlers()
@@ -15,6 +15,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('Worker failed to start:', error)
+  logError('Worker failed to start', { error: String(error) })
   process.exit(1)
 })
