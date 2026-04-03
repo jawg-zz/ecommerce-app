@@ -192,7 +192,7 @@ function PaymentsContent() {
   }
 
   const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-KES', {
+    return new Intl.NumberFormat('en-KE', {
       style: 'currency',
       currency: 'KES',
       minimumFractionDigits: 0,
