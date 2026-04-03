@@ -51,7 +51,7 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-5. The application will be available at `https://ecommerce.spidmax.win`
+5. The application will be available at `https://shop.spidmax.win`
 
 ### Local Development
 

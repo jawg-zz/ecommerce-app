@@ -6,7 +6,7 @@
 - **Type**: Full-stack e-commerce web application
 - **Core Functionality**: Online shopping platform with product catalog, cart, checkout, and order management
 - **Target Users**: Online shoppers and store administrators
-- **Domain**: ecommerce.spidmax.win
+- **Domain**: shop.spidmax.win
 
 ---
 

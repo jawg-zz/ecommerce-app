@@ -17,7 +17,7 @@ services:
       - MPESA_PASSKEY=${MPESA_PASSKEY}
       - MPESA_CALLBACK_URL=${MPESA_CALLBACK_URL}
       - MPESA_IP_WHITELIST=${MPESA_IP_WHITELIST:-true}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://ecommerce.spidmax.win}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://shop.spidmax.win}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
@@ -28,7 +28,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ecommerce.rule=Host(`ecommerce.spidmax.win`)"
+      - "traefik.http.routers.ecommerce.rule=Host(`shop.spidmax.win`)"
       - "traefik.http.routers.ecommerce.entrypoints=websecure"
       - "traefik.http.routers.ecommerce.tls=true"
       - "traefik.http.services.ecommerce.loadbalancer.server.port=3000"
