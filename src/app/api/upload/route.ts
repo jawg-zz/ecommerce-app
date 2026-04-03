@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { uploadImage } from '@/lib/cloudinary'
-import * as fileType from 'file-type'
+import { FileTypeParser } from 'file-type'
 import { logError } from '@/lib/logger'
 
 const ALLOWED_FILE_TYPES = [
@@ -12,7 +12,8 @@ const ALLOWED_FILE_TYPES = [
 
 async function validateFileMagicBytes(buffer: Buffer): Promise<{ valid: boolean; mime: string | null; error: string | null }> {
   try {
-    const result = await fileType.fromBuffer(buffer)
+    const parser = new FileTypeParser()
+    const result = await parser.fromBuffer(buffer)
     if (!result) {
       return { valid: false, mime: null, error: 'Unable to determine file type from content' }
     }
