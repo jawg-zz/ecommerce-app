@@ -91,7 +91,6 @@ export async function GET(request: NextRequest) {
             logError('SSE Redis subscriber error', { error: String(err), orderId })
           })
 
-          await subscriber.connect()
           console.log('[SSE] Subscriber connected, status:', subscriber.status)
 
           subscriber.on('message', async (channel: string, message: string) => {
