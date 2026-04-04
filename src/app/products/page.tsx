@@ -132,13 +132,13 @@ function ProductsContent() {
     router.push('/products')
   }
 
-  const activeFilters = [
+  const activeFilters: { key: string; value: string; label: string }[] = [
     category && { key: 'category', value: category, label: category },
     minPrice && { key: 'minPrice', value: minPrice, label: `Min: KES ${minPrice}` },
     maxPrice && { key: 'maxPrice', value: maxPrice, label: `Max: KES ${maxPrice}` },
     minRating && { key: 'minRating', value: minRating, label: `${minRating}+ stars` },
     inStock && { key: 'inStock', value: inStock, label: 'In Stock' },
-  ].filter(Boolean)
+  ].filter((f): f is { key: string; value: string; label: string } => Boolean(f))
 
   const totalPages = Math.ceil(total / 12)
 
