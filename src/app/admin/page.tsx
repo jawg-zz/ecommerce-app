@@ -14,6 +14,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
 } from 'recharts'
 import {
   DollarSign,
@@ -24,9 +26,11 @@ import {
   TrendingDown,
   ArrowRight,
   Clock,
+  AlertTriangle,
+  Calendar,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { StatusBadge, TrendIndicator } from '@/components/admin/StatusBadge'
+import { StatusBadge } from '@/components/admin/StatusBadge'
 
 interface Stats {
   totalProducts: number
@@ -34,6 +38,9 @@ interface Stats {
   pendingOrders: number
   totalRevenue: number
   totalCustomers: number
+  newCustomers: number
+  revenueChange: number
+  averageOrderValue: number
 }
 
 interface Order {
@@ -51,32 +58,10 @@ interface Product {
   stock: number
   category: string
   image: string | null
+  totalSold?: number
 }
 
-const CHART_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444']
-
-const mockSalesData = [
-  { day: 'Mon', sales: 4200, orders: 24 },
-  { day: 'Tue', sales: 3800, orders: 18 },
-  { day: 'Wed', sales: 5100, orders: 32 },
-  { day: 'Thu', sales: 4600, orders: 28 },
-  { day: 'Fri', sales: 6200, orders: 41 },
-  { day: 'Sat', sales: 7800, orders: 52 },
-  { day: 'Sun', sales: 5400, orders: 35 },
-]
-
-const mockCategoryData = [
-  { name: 'Electronics', value: 45 },
-  { name: 'Clothing', value: 30 },
-  { name: 'Books', value: 25 },
-]
-
-const mockOrderStatusData = [
-  { name: 'Pending', value: 12 },
-  { name: 'Paid', value: 28 },
-  { name: 'Shipped', value: 18 },
-  { name: 'Delivered', value: 42 },
-]
+const CHART_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
@@ -85,38 +70,59 @@ export default function AdminDashboard() {
     pendingOrders: 0,
     totalRevenue: 0,
     totalCustomers: 0,
+    newCustomers: 0,
+    revenueChange: 0,
+    averageOrderValue: 0,
   })
   const [recentOrders, setRecentOrders] = useState<Order[]>([])
   const [topProducts, setTopProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [chartType, setChartType] = useState<'sales' | 'category' | 'status'>('sales')
+  const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('7d')
+  const [revenueByDay, setRevenueByDay] = useState<{ date: string; revenue: number; orders: number }[]>([])
+  const [orderStatus, setOrderStatus] = useState<Record<string, number>>({})
+  const [categoryDistribution, setCategoryDistribution] = useState<{ category: string; productCount: number }[]>([])
+  const [lowStockAlerts, setLowStockAlerts] = useState<Product[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true)
       try {
-        const [productsRes, ordersRes] = await Promise.all([
+        const [analyticsRes, productsRes, ordersRes] = await Promise.all([
+          fetch(`/api/admin/analytics?period=${period}`),
           fetch('/api/admin/products?limit=100'),
-          fetch('/api/admin/orders'),
+          fetch('/api/admin/orders?limit=5'),
         ])
 
+        const analyticsData = await analyticsRes.json()
         const productsData = await productsRes.json()
         const ordersData = await ordersRes.json()
 
-        const orders = ordersData.orders || []
-        const totalRevenue = orders
-          .filter((o: Order) => o.status === 'PAID' || o.status === 'DELIVERED' || o.status === 'SHIPPED')
-          .reduce((sum: number, o: Order) => sum + o.total, 0)
+        if (analyticsData.summary) {
+          setStats({
+            totalProducts: analyticsData.summary.totalRevenue > 0 ? productsData.total || 0 : productsData.total || 0,
+            totalOrders: analyticsData.summary.totalOrders || 0,
+            pendingOrders: analyticsData.orderStatus?.PENDING || 0,
+            totalRevenue: analyticsData.summary.totalRevenue || 0,
+            totalCustomers: analyticsData.summary.totalCustomers || 0,
+            newCustomers: analyticsData.summary.newCustomers || 0,
+            revenueChange: analyticsData.summary.revenueChange || 0,
+            averageOrderValue: analyticsData.summary.averageOrderValue || 0,
+          })
 
-        setStats({
-          totalProducts: productsData.total || 0,
-          totalOrders: ordersData.total || 0,
-          pendingOrders: orders.filter((o: Order) => o.status === 'PENDING').length,
-          totalRevenue,
-          totalCustomers: 156,
-        })
+          setRevenueByDay(analyticsData.revenueByDay || [])
+          setOrderStatus(analyticsData.orderStatus || {})
+          setCategoryDistribution(analyticsData.categoryDistribution || [])
+          setLowStockAlerts(analyticsData.lowStockAlerts || [])
+        }
 
-        setRecentOrders(orders.slice(0, 5))
-        setTopProducts(productsData.products?.slice(0, 5) || [])
+        if (ordersData.orders) {
+          setRecentOrders(ordersData.orders.slice(0, 5))
+        }
+
+        if (productsData.products) {
+          setTopProducts(analyticsData.topProducts || productsData.products.slice(0, 5))
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
       } finally {
@@ -125,7 +131,7 @@ export default function AdminDashboard() {
     }
 
     fetchData()
-  }, [])
+  }, [period])
 
   const statCards = [
     {
@@ -133,7 +139,7 @@ export default function AdminDashboard() {
       value: formatPrice(stats.totalRevenue),
       icon: DollarSign,
       color: 'bg-sky-500',
-      trend: 12.5,
+      trend: stats.revenueChange,
       href: '/admin/orders',
     },
     {
@@ -141,7 +147,7 @@ export default function AdminDashboard() {
       value: stats.totalOrders.toString(),
       icon: ShoppingCart,
       color: 'bg-emerald-500',
-      trend: 8.2,
+      trend: null,
       href: '/admin/orders',
     },
     {
@@ -149,7 +155,7 @@ export default function AdminDashboard() {
       value: stats.totalProducts.toString(),
       icon: Package,
       color: 'bg-violet-500',
-      trend: -2.4,
+      trend: null,
       href: '/admin/products',
     },
     {
@@ -157,20 +163,27 @@ export default function AdminDashboard() {
       value: stats.totalCustomers.toString(),
       icon: Users,
       color: 'bg-amber-500',
-      trend: 15.3,
+      trend: null,
       href: '/admin/customers',
     },
   ]
 
-  const getChartData = () => {
-    switch (chartType) {
-      case 'category':
-        return mockCategoryData
-      case 'status':
-        return mockOrderStatusData
-      default:
-        return mockSalesData
+  const pieData = useMemo(() => {
+    if (chartType === 'category') {
+      return categoryDistribution.map((c) => ({
+        name: c.category || 'Uncategorized',
+        value: c.productCount,
+      }))
     }
+    return Object.entries(orderStatus).map(([name, value]) => ({
+      name,
+      value,
+    }))
+  }, [chartType, categoryDistribution, orderStatus])
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   return (
@@ -181,10 +194,14 @@ export default function AdminDashboard() {
           <p className="text-slate-500 text-sm mt-1">Welcome back! Here&apos;s your store overview.</p>
         </div>
         <div className="flex gap-2">
-          <select className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-            <option>Last 7 days</option>
-            <option>Last 30 days</option>
-            <option>Last 90 days</option>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as '7d' | '30d' | '90d')}
+            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
           </select>
         </div>
       </div>
@@ -213,9 +230,11 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
                     <p className="text-2xl font-bold text-slate-900 mt-2">{stat.value}</p>
-                    <div className="mt-2">
-                      <TrendIndicator value={stat.trend} label="vs last week" />
-                    </div>
+                    {stat.trend !== null && (
+                      <div className="mt-2">
+                        <TrendIndicator value={stat.trend} label={`vs last ${period === '7d' ? 'week' : period === '30d' ? 'month' : 'quarter'}`} />
+                      </div>
+                    )}
                   </div>
                   <div className={`p-3 rounded-xl ${stat.color} text-white`}>
                     <Icon className="w-6 h-6" />
@@ -230,7 +249,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">Sales Overview</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Revenue Overview</h2>
             <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
               {(['sales', 'category', 'status'] as const).map((type) => (
                 <button
@@ -250,52 +269,58 @@ export default function AdminDashboard() {
 
           <div className="h-80">
             {chartType === 'sales' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mockSalesData}>
-                  <defs>
-                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} tickFormatter={(value) => `$${value / 1000}k`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value) => [formatPrice(Number(value)), 'Sales']}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#0ea5e9"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorSales)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              revenueByDay.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueByDay}>
+                    <defs>
+                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickFormatter={formatDate} />
+                    <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `KES ${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number) => [formatPrice(value * 100), 'Revenue']}
+                      labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#0ea5e9"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorSales)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-400">
+                  No revenue data available
+                </div>
+              )
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={chartType === 'category' ? mockCategoryData : mockOrderStatusData}
+                    data={pieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
                     outerRadius={100}
                     paddingAngle={5}
                     dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                   >
-                    {(chartType === 'category' ? mockCategoryData : mockOrderStatusData).map(
-                      (_, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      )
-                    )}
+                    {pieData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
                   </Pie>
                   <Tooltip
                     contentStyle={{
@@ -303,24 +328,26 @@ export default function AdminDashboard() {
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
                     }}
-                    formatter={(value) => [`${value}%`, 'Percentage']}
+                    formatter={(value: number) => [`${value}`, 'Count']}
                   />
                 </PieChart>
               </ResponsiveContainer>
             )}
           </div>
 
-          <div className="flex flex-wrap gap-4 mt-4 justify-center">
-            {(chartType === 'category' ? mockCategoryData : mockOrderStatusData).map((item, index) => (
-              <div key={item.name} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                />
-                <span className="text-sm text-slate-600">{item.name}</span>
-              </div>
-            ))}
-          </div>
+          {chartType !== 'sales' && pieData.length > 0 && (
+            <div className="flex flex-wrap gap-4 mt-4 justify-center">
+              {pieData.map((item, index) => (
+                <div key={item.name} className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                  />
+                  <span className="text-sm text-slate-600">{item.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="card p-6">
@@ -505,7 +532,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-slate-900">{formatPrice(product.price)}</p>
-                    <p className="text-xs text-slate-500">{product.stock} in stock</p>
+                    <p className="text-xs text-slate-500">{product.totalSold || product.stock} sold</p>
                   </div>
                 </div>
               ))
@@ -517,6 +544,50 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {lowStockAlerts.length > 0 && (
+        <div className="card p-6 border-l-4 border-orange-500">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900">Low Stock Alerts</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lowStockAlerts.slice(0, 6).map((product) => (
+              <div key={product.id} className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+                <Package className="w-8 h-8 text-orange-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{product.name}</p>
+                  <p className="text-xs text-orange-600">Only {product.stock} left</p>
+                </div>
+                <Link
+                  href={`/admin/inventory?status=low_stock`}
+                  className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                >
+                  Restock
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TrendIndicator({ value, label }: { value: number; label: string }) {
+  const isPositive = value >= 0
+  
+  return (
+    <div className={`flex items-center gap-1 text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      {isPositive ? (
+        <TrendingUp className="w-4 h-4" />
+      ) : (
+        <TrendingDown className="w-4 h-4" />
+      )}
+      <span className="font-medium">{Math.abs(value).toFixed(1)}%</span>
+      <span className="text-slate-500">{label}</span>
     </div>
   )
 }

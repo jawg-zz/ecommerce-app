@@ -8,51 +8,137 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  password     String
-  name         String
-  role         Role          @default(USER)
-  orders       Order[]
-  cartBackups  CartBackup[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id             String         @id @default(uuid())
+  email          String         @unique
+  password       String
+  name           String
+  role           Role           @default(USER)
+  orders         Order[]
+  cartBackups    CartBackup[]
+  wishlistItems  WishlistItem[]
+  reviews        Review[]
+  notifications Notification[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+// Wishlist with sharing capability
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+// Product Reviews & Ratings
+model Review {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5 stars
+  title      String?
+  content    String?
+  helpful    Int      @default(0) // Helpful votes count
+  verified   Boolean  @default(false) // Verified purchase
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([productId, userId]) // One review per product per user
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Notifications
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  link      String?          // Optional link to related content
+  read      Boolean         @default(false)
+  createdAt DateTime        @default(now())
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  ORDER_CONFIRMATION
+  ORDER_SHIPPED
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  LOW_STOCK_ALERT
+  PRICE_DROP
+  WISHLIST_RESTOCK
+  REVIEW_REPLY
+}
+
+// Order Timeline for tracking
+model OrderTimeline {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String   // PENDING, PAID, SHIPPED, DELIVERED, CANCELLED
+  message   String   // Human-readable status message
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 model Product {
-  id          String      @id @default(uuid())
+  id          String         @id @default(uuid())
   name        String
   description String?
   price       Int
   category    String?
   categoryId  String?
-  categoryRef ProductCollection?   @relation(fields: [categoryId], references: [id])
+  categoryRef ProductCollection? @relation(fields: [categoryId], references: [id])
   image       String?
-  stock       Int         @default(0)
+  stock       Int            @default(0)
   orderItems  OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  reviews     Review[]
+  wishlistItems WishlistItem[]
+  // Aggregate rating fields for fast querying
+  averageRating Float        @default(0)
+  reviewCount   Int          @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([category])
   @@index([categoryId])
   @@index([stock])
+  @@index([averageRating])
 }
 
 model Order {
-  id                     String      @id @default(uuid())
+  id                     String           @id @default(uuid())
   userId                 String
-  user                   User        @relation(fields: [userId], references: [id])
-  status                 OrderStatus @default(PENDING)
+  user                   User             @relation(fields: [userId], references: [id])
+  status                 OrderStatus      @default(PENDING)
   items                  OrderItem[]
+  timeline               OrderTimeline[]
   total                  Int
   stripePaymentId        String?
   mpesaCheckoutRequestId String?
   mpesaMerchantRequestId String?
   reference              String?
   shippingAddress        Json?
-  cancelReason           String?     // Store M-Pesa error message
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
+  cancelReason           String?          // Store M-Pesa error message
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   @@index([userId])
   @@index([status, createdAt])

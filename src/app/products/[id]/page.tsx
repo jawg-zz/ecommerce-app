@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -19,6 +19,19 @@ interface Product {
   category: 'ELECTRONICS' | 'CLOTHING' | 'BOOKS'
   image: string | null
   stock: number
+  averageRating?: number
+  reviewCount?: number
+}
+
+interface Review {
+  id: string
+  rating: number
+  title: string | null
+  content: string | null
+  helpful: number
+  verified: boolean
+  createdAt: string
+  user: { id: string; name: string }
 }
 
 function Breadcrumbs({ product }: { product: Product }) {
@@ -127,10 +140,20 @@ function ProductImage({ product }: { product: Product }) {
   )
 }
 
-function StarRating({ rating, reviewCount }: { rating?: number; reviewCount?: number }) {
+function StarRating({ 
+  rating, 
+  reviewCount, 
+  interactive = false,
+  onRatingChange 
+}: { 
+  rating?: number; 
+  reviewCount?: number
+  interactive?: boolean
+  onRatingChange?: (rating: number) => void
+}) {
   const [hoverRating, setHoverRating] = useState(0)
   const currentRating = hoverRating || rating || 0
-  const count = reviewCount || 12
+  const count = reviewCount || 0
 
   return (
     <div className="flex items-center gap-2">
@@ -139,9 +162,10 @@ function StarRating({ rating, reviewCount }: { rating?: number; reviewCount?: nu
           <button
             key={star}
             type="button"
-            className="focus:outline-none"
-            onMouseEnter={() => setHoverRating(star)}
-            onClick={() => {}}
+            className={`focus:outline-none ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
+            onMouseEnter={() => interactive && setHoverRating(star)}
+            onClick={() => interactive && onRatingChange?.(star)}
+            disabled={!interactive}
           >
             <svg 
               className={`w-5 h-5 transition-colors ${
@@ -157,9 +181,270 @@ function StarRating({ rating, reviewCount }: { rating?: number; reviewCount?: nu
           </button>
         ))}
       </div>
-      <span className="text-sm text-slate-500">
-        {currentRating.toFixed(1)} ({count} reviews)
-      </span>
+      {count > 0 && (
+        <span className="text-sm text-slate-500">
+          {currentRating.toFixed(1)} ({count} reviews)
+        </span>
+      )}
+    </div>
+  )
+}
+
+function ReviewsSection({ productId }: { productId: string }) {
+  const { user } = useApp()
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [stats, setStats] = useState<{ averageRating: number; totalReviews: number; distribution: Record<number, number> } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState('newest')
+  const [showForm, setShowForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [newReview, setNewReview] = useState({ rating: 5, title: '', content: '' })
+
+  useEffect(() => {
+    fetchReviews()
+  }, [productId, sort])
+
+  const fetchReviews = async () => {
+    try {
+      const res = await fetch(`/api/reviews?productId=${productId}&sort=${sort}`)
+      const data = await res.json()
+      setReviews(data.reviews || [])
+      setStats(data.stats)
+    } catch {
+      console.error('Failed to fetch reviews')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmitReview = async () => {
+    if (!user) {
+      toast.error('Please login to submit a review')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId,
+          rating: newReview.rating,
+          title: newReview.title || null,
+          content: newReview.content || null,
+        }),
+      })
+
+      if (res.ok) {
+        toast.success('Review submitted successfully!')
+        setShowForm(false)
+        setNewReview({ rating: 5, title: '', content: '' })
+        fetchReviews()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to submit review')
+      }
+    } catch {
+      toast.error('Failed to submit review')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMarkHelpful = async (reviewId: string) => {
+    try {
+      await fetch(`/api/reviews/${reviewId}/helpful`, { method: 'POST' })
+      fetchReviews()
+    } catch {
+      console.error('Failed to mark review as helpful')
+    }
+  }
+
+  return (
+    <div className="mt-16">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Customer Reviews</h2>
+        {user && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn-primary"
+          >
+            Write a Review
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="card p-6 mb-8">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Write Your Review</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Rating</label>
+              <StarRating 
+                rating={newReview.rating} 
+                interactive={true}
+                onRatingChange={(r) => setNewReview({ ...newReview, rating: r })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Title (optional)</label>
+              <input
+                type="text"
+                value={newReview.title}
+                onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                className="input-field"
+                placeholder="Summarize your review"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Review (optional)</label>
+              <textarea
+                value={newReview.content}
+                onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
+                className="input-field"
+                rows={4}
+                placeholder="Share your experience with this product"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmitReview}
+                disabled={submitting}
+                className="btn-primary"
+              >
+                {submitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+              <button
+                onClick={() => setShowForm(false)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {stats && (
+        <div className="card p-6 mb-8">
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="text-center md:text-left">
+              <p className="text-4xl font-bold text-slate-900">{stats.averageRating.toFixed(1)}</p>
+              <div className="flex justify-center md:justify-start mt-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <svg
+                    key={star}
+                    className={`w-5 h-5 ${star <= Math.round(stats.averageRating) ? 'text-yellow-400' : 'text-slate-200'}`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">{stats.totalReviews} reviews</p>
+            </div>
+
+            <div className="flex-1 space-y-2">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = stats.distribution[star] || 0
+                const percentage = stats.totalReviews > 0 ? (count / stats.totalReviews) * 100 : 0
+                return (
+                  <div key={star} className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600 w-8">{star} star</span>
+                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-yellow-400 rounded-full" 
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-sm text-slate-500 w-8">{count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 mb-6">
+        <span className="text-sm text-slate-600">Sort by:</span>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className="input-field w-auto"
+        >
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="highest">Highest Rating</option>
+          <option value="lowest">Lowest Rating</option>
+          <option value="helpful">Most Helpful</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="card p-6 animate-pulse">
+              <div className="h-4 bg-slate-200 rounded w-1/4 mb-4" />
+              <div className="h-4 bg-slate-200 rounded w-3/4" />
+            </div>
+          ))}
+        </div>
+      ) : reviews.length > 0 ? (
+        <div className="space-y-6">
+          {reviews.map((review) => (
+            <div key={review.id} className="card p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <StarRating rating={review.rating} />
+                    {review.verified && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                        Verified Purchase
+                      </span>
+                    )}
+                  </div>
+                  {review.title && (
+                    <h4 className="font-semibold text-slate-900">{review.title}</h4>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-500">{review.user.name}</p>
+                  <p className="text-xs text-slate-400">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              {review.content && (
+                <p className="text-slate-600 mb-4">{review.content}</p>
+              )}
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => handleMarkHelpful(review.id)}
+                  className="text-sm text-slate-500 hover:text-sky-600 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                  </svg>
+                  Helpful ({review.helpful})
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card p-12 text-center">
+          <svg className="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No reviews yet</h3>
+          <p className="text-slate-500">Be the first to review this product!</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -205,7 +490,7 @@ function QuantitySelector({
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed } = useApp()
+  const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed, user } = useApp()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [quantity, setQuantity] = useState(1)
@@ -352,7 +637,7 @@ export default function ProductDetailPage() {
               </span>
               {product.stock > 0 && product.stock <= 5 && (
                 <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
-                  Low Stock
+                  Only {product.stock} left
                 </span>
               )}
             </div>
@@ -361,9 +646,11 @@ export default function ProductDetailPage() {
               {product.name}
             </h1>
 
-            <div className="mb-6">
-              <StarRating rating={4.5} reviewCount={12} />
-            </div>
+            {(product.averageRating !== undefined && product.averageRating > 0) && (
+              <div className="mb-6">
+                <StarRating rating={product.averageRating} reviewCount={product.reviewCount} />
+              </div>
+            )}
 
             <p className="text-3xl lg:text-4xl font-bold text-sky-600 mb-6">
               {formatPrice(product.price)}
@@ -483,6 +770,8 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        <ReviewsSection productId={product.id} />
 
         {relatedProducts.length > 0 && (
           <div className="mt-16">

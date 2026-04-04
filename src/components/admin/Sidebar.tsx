@@ -14,6 +14,9 @@ import {
   LogOut,
   Clock,
   CreditCard,
+  Users,
+  BarChart3,
+  Boxes,
 } from 'lucide-react'
 import { useApp } from '@/components/Providers'
 
@@ -29,6 +32,8 @@ const navItems = [
   { href: '/admin/products', label: 'Products', icon: Package },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/customers', label: 'Customers', icon: Users },
+  { href: '/admin/inventory', label: 'Inventory', icon: Boxes },
   { href: '/admin/cron', label: 'Cron Jobs', icon: Clock },
 ]
 
