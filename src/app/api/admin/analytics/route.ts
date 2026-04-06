@@ -72,11 +72,11 @@ export async function GET(request: NextRequest) {
         _count: true,
       }),
       prisma.$queryRaw`
-        SELECT DATE(created_at) as date, SUM(total) as revenue, COUNT(*) as orders
+        SELECT DATE("createdAt") as date, SUM(total) as revenue, COUNT(*) as orders
         FROM "Order"
         WHERE status IN ('PAID', 'SHIPPED', 'DELIVERED')
-        AND created_at >= ${dateFilter.gte || new Date(0)}
-        GROUP BY DATE(created_at)
+        AND "createdAt" >= ${dateFilter.gte || new Date(0)}
+        GROUP BY DATE("createdAt")
         ORDER BY date ASC
       `,
       prisma.product.findMany({
