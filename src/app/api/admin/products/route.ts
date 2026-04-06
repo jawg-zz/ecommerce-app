@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logError } from '@/lib/logger'
-import DOMPurify from 'isomorphic-dompurify'
 
 const ALLOWED_IMAGE_DOMAINS = ['images.unsplash.com', 'via.placeholder.com', 'res.cloudinary.com', 'cdn.shopify.com']
 
@@ -29,7 +28,7 @@ const productSchema = z.object({
   stock: z.number().int().min(0).default(0),
 }).transform(data => ({
   ...data,
-  description: data.description ? DOMPurify.sanitize(data.description) : undefined,
+  description: data.description?.trim() || undefined,
 }))
 
 export async function GET(request: NextRequest) {

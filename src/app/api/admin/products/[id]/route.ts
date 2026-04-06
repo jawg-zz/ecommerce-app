@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logError } from '@/lib/logger'
-import DOMPurify from 'isomorphic-dompurify'
 
 const productSchema = z.object({
   name: z.string().min(1).optional(),
@@ -14,7 +13,7 @@ const productSchema = z.object({
   stock: z.number().int().min(0).optional(),
 }).transform(data => ({
   ...data,
-  description: data.description ? DOMPurify.sanitize(data.description) : undefined,
+  description: data.description !== undefined ? (data.description.trim() || null) : undefined,
 }))
 
 export async function GET(
