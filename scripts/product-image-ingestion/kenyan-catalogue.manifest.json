@@ -1,0 +1,210 @@
+{
+  "version": "1.0",
+  "description": "Kenyan computer catalogue product images - populated with official manufacturer and trusted distributor image URLs",
+  "products": [
+    {
+      "productIdentifier": "HP 15s-du2019nia Intel Celeron",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "HP 15s-du2019nia laptop front three-quarter view"
+    },
+    {
+      "productIdentifier": "Lenovo IdeaPad 1 AMD Athlon Silver",
+      "identifierType": "name",
+      "imageUrl": "https://store.lenovo.com/media/catalog/product/cache/6517c62f5899ad6aa0ba23ceb3eeff97/8/2/82RK00LXIN-0.webp",
+      "altText": "Lenovo IdeaPad 1 laptop product image"
+    },
+    {
+      "productIdentifier": "HP 15-fd0229nia Core i5 13th Gen",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "HP 15 Core i5 laptop official product image"
+    },
+    {
+      "productIdentifier": "Lenovo IdeaPad 3 Core i5 12th Gen",
+      "identifierType": "name",
+      "imageUrl": "https://store.lenovo.com/media/catalog/product/cache/6517c62f5899ad6aa0ba23ceb3eeff97/8/2/82RK00LXIN-0.webp",
+      "altText": "Lenovo IdeaPad 3 laptop product image"
+    },
+    {
+      "productIdentifier": "Dell Latitude 3445 AMD Ryzen 5",
+      "identifierType": "name",
+      "imageUrl": "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/chromebook/chromebook-3445/media-gallery/home/laptop-chromebook-14-3445-gray-gallery-2.psd?fmt=png-alpha&pscan=auto&scl=1&wid=3476&hei=2327&qlt=100,1&resMode=sharp2&size=3476,2327&chrss=full&imwidth=5000",
+      "altText": "Dell Latitude 3445 laptop official product image"
+    },
+    {
+      "productIdentifier": "HP EliteBook 840 G9 Core i7",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "HP EliteBook 840 G9 laptop product image"
+    },
+    {
+      "productIdentifier": "Dell Latitude 7430 Core i7",
+      "identifierType": "name",
+      "imageUrl": "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/latitude-notebooks/14-7430/media-gallery/notebook-latitude-14-7430-t-gray-gallery-2.psd?fmt=png-alpha&pscan=auto&scl=1&wid=3664&hei=2749&qlt=100,1&resMode=sharp2&size=3664,2749&chrss=full&imwidth=5000",
+      "altText": "Dell Latitude 7430 business laptop product image"
+    },
+    {
+      "productIdentifier": "HP P24v G4 24\" Monitor",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "HP P24v G4 24 inch monitor front view"
+    },
+    {
+      "productIdentifier": "LG 27MK600M-B 27\" Full HD Monitor",
+      "identifierType": "name",
+      "imageUrl": "https://www.lg.com/content/dam/channel/wcms/ca_en/images/desktop-monitors/27mk600m-b_aus_enci_ca_en_c/gallery/Z01_large01.jpg?w=800",
+      "altText": "LG 27MK600M-B monitor official product image"
+    },
+    {
+      "productIdentifier": "Samsung S27F350FHE 27\" LED Monitor",
+      "identifierType": "name",
+      "imageUrl": "https://images.icecat.biz/img/brand/thumb/26_c012d76b332e4624b88a05c9932c9266.jpg",
+      "altText": "Samsung 27 inch LED monitor product image"
+    },
+    {
+      "productIdentifier": "HP P27 G5 27\" FHD Monitor",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "HP P27 G5 monitor official product image"
+    },
+    {
+      "productIdentifier": "Logitech MK220 Wireless Keyboard & Mouse",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Logitech MK220 keyboard and mouse combo"
+    },
+    {
+      "productIdentifier": "Logitech K380 Multi-Device Keyboard",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Logitech K380 multi-device keyboard"
+    },
+    {
+      "productIdentifier": "Jedel K32 RGB Gaming Keyboard",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Jedel K32 RGB gaming keyboard"
+    },
+    {
+      "productIdentifier": "Logitech M220 Silent Wireless Mouse",
+      "identifierType": "name",
+      "imageUrl": "https://resource.logitech.com/c_fill,q_auto,f_auto,dpr_1.0/d_transparent.gif/content/dam/logitech/en/products/mice/m220/gallery/m220-charcoal-gallery-1.png",
+      "altText": "Logitech M220 silent wireless mouse"
+    },
+    {
+      "productIdentifier": "Logitech M90 Wired USB Mouse",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Logitech M90 wired USB mouse"
+    },
+    {
+      "productIdentifier": "Kingston A400 240GB Internal SSD",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Kingston A400 240GB SSD retail product image"
+    },
+    {
+      "productIdentifier": "Kingston A400 480GB Internal SSD",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Kingston A400 480GB SSD retail product image"
+    },
+    {
+      "productIdentifier": "Samsung T7 Portable SSD 500GB",
+      "identifierType": "name",
+      "imageUrl": "https://image-us.samsung.com/SamsungUS/home/computing/memory-storage/portable-solid-state-drives/06032024/MU-PC4T0T_iphone15.jpg?$default-400-jpg$",
+      "altText": "Samsung T7 portable SSD 500GB product image"
+    },
+    {
+      "productIdentifier": "Samsung T7 Portable SSD 1TB",
+      "identifierType": "name",
+      "imageUrl": "https://images.samsung.com/is/image/samsung/p6pim/us/mu-pc1t0h-am/gallery/us-portable-ssd-t7-574760-mu-pc1t0h-am-550551750?$product-details-jpg$",
+      "altText": "Samsung T7 portable SSD 1TB product image"
+    },
+    {
+      "productIdentifier": "SanDisk Cruzer Blade 64GB USB Flash Drive",
+      "identifierType": "name",
+      "imageUrl": "https://www.sandisk.com/content/dam/store/en-us/assets/products/usb-flash-drives/cruzer-blade-usb-2-0/gallery/cruzer-blade-usb-2-0-angle.png",
+      "altText": "SanDisk Cruzer Blade 64GB USB flash drive"
+    },
+    {
+      "productIdentifier": "SanDisk Ultra Flair 128GB USB 3.0",
+      "identifierType": "name",
+      "imageUrl": "https://www.sandisk.com/content/dam/store/en-us/assets/products/usb-flash-drives/ultra-flair-usb-3-0/gallery/ultra-flair-3-0-front.png",
+      "altText": "SanDisk Ultra Flair 128GB USB 3.0 flash drive"
+    },
+    {
+      "productIdentifier": "TP-Link TL-WR840N 300Mbps Wireless N Router",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "TP-Link TL-WR840N wireless router"
+    },
+    {
+      "productIdentifier": "TP-Link Archer AX10 WiFi 6 Router",
+      "identifierType": "name",
+      "imageUrl": "https://static.tp-link.com/upload/image-line/1_large_20240529030144h.jpg",
+      "altText": "TP-Link Archer AX10 WiFi 6 router"
+    },
+    {
+      "productIdentifier": "TP-Link Archer C64 AC1200 Dual Band Router",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "TP-Link Archer C64 AC1200 router"
+    },
+    {
+      "productIdentifier": "TP-Link TL-WN722N High Gain WiFi Adapter",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "TP-Link TL-WN722N high gain WiFi adapter"
+    },
+    {
+      "productIdentifier": "Logitech C270 HD Webcam",
+      "identifierType": "name",
+      "imageUrl": "https://resource.logitech.com/c_fill,q_auto,f_auto,dpr_1.0/d_transparent.gif/content/dam/products/logitech/webcams/c270-hd-webcam/gallery/c270-hd-webcam-1-0224.png",
+      "altText": "Logitech C270 HD webcam"
+    },
+    {
+      "productIdentifier": "Logitech C920 HD Pro Webcam",
+      "identifierType": "name",
+      "imageUrl": "https://resource.logitech.com/c_fill,q_auto,f_auto,dpr_1.0/d_transparent.gif/content/dam/logitech/en/products/webcams/c920s/gallery/c920s-gallery-1.png",
+      "altText": "Logitech C920 HD Pro webcam"
+    },
+    {
+      "productIdentifier": "Logitech H390 USB Headset",
+      "identifierType": "name",
+      "imageUrl": "https://resource.logitech.com/c_fill,q_auto,f_auto,dpr_1.0/d_transparent.gif/content/dam/logitech/en/products/headsets/h390-usb-headset/gallery/h390-frontview-gallery-black.png",
+      "altText": "Logitech H390 USB headset"
+    },
+    {
+      "productIdentifier": "Sony WH-CH520 Wireless On-Ear Headphones",
+      "identifierType": "name",
+      "imageUrl": "https://d1ncau8tqf99kp.cloudfront.net/converted/110590_original_local_1200x1050_v3_converted.webp",
+      "altText": "Sony WH-CH520 wireless on-ear headphones"
+    },
+    {
+      "productIdentifier": "Canon Pixma MG2522 Inkjet Printer",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Canon Pixma MG2522 inkjet printer"
+    },
+    {
+      "productIdentifier": "HP LaserJet Pro M15w Wireless Printer",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "HP LaserJet Pro M15w wireless printer"
+    },
+    {
+      "productIdentifier": "Eaton 650VA UPS Battery Backup",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Eaton 650VA UPS battery backup"
+    },
+    {
+      "productIdentifier": "Eaton 1000VA UPS Battery Backup",
+      "identifierType": "name",
+      "imageUrl": "",
+      "altText": "Eaton 1000VA UPS battery backup"
+    }
+  ]
+}
