@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "description": "Product image ingestion manifest - maps products to source image URLs",
+  "products": [
+    {
+      "productIdentifier": "iPhone 15 Pro",
+      "identifierType": "name",
+      "imageUrl": "https://example.com/images/iphone-15-pro.jpg",
+      "altText": "iPhone 15 Pro in natural titanium"
+    }
+  ]
+}
