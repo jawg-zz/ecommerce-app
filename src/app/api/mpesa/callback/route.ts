@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     || request.headers.get('cf-connecting-ip')
     || null
 
-  const ipWhitelistEnabled = process.env.MPESA_IP_WHITELIST !== 'false'
+  const ipWhitelistEnabled = process.env.MPESA_IP_WHITELIST === 'true'
   if (ipWhitelistEnabled && !isAllowedIP(clientIP)) {
     logError('Unauthorized M-Pesa callback - IP not allowed', {
       ip: clientIP || 'unknown'
