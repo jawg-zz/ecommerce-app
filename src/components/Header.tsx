@@ -166,8 +166,8 @@ export function Header() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <span className="hidden md:inline">Search</span>
-                <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-slate-400 bg-white rounded border border-slate-200">
-                  <span>⌘</span>K
+                <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-slate-400 bg-white rounded border border-slate-200" aria-label="Command + K">
+                  <span aria-hidden="true">⌘</span>K
                 </kbd>
               </button>
 
@@ -313,9 +313,10 @@ export function Header() {
 
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors touch-target"
+                className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors touch-target focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
                 aria-label="Toggle menu"
                 aria-expanded={menuOpen}
+                aria-controls="mobile-navigation"
               >
                 {menuOpen ? (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -331,7 +332,7 @@ export function Header() {
           </div>
 
           {menuOpen && (
-            <nav className="lg:hidden py-4 border-t border-slate-100 mt-4 animate-slide-down">
+            <nav id="mobile-navigation" className="lg:hidden py-4 border-t border-slate-100 mt-4 animate-slide-down" aria-label="Mobile navigation">
               <div className="space-y-1">
                 {navLinks.map((link) => (
                   <Link

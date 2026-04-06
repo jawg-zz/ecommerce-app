@@ -92,9 +92,21 @@ function OrdersContent() {
     return `/orders?${params.toString()}`
   }
 
+  const getStatusMessage = () => {
+    if (loading) return 'Loading your orders...'
+    if (orders.length === 0) {
+      return statusFilter ? `No ${statusFilter.toLowerCase()} orders yet.` : 'No orders yet.'
+    }
+    return `Showing ${orders.length} order${orders.length !== 1 ? 's' : ''}`
+  }
+
   return (
     <div className="py-8">
       <div className="container-custom">
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {getStatusMessage()}
+        </div>
+        
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">My Orders</h1>
           <div className="flex gap-2 flex-wrap">

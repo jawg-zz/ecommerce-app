@@ -174,7 +174,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           <button
             onClick={handleWishlistToggle}
             disabled={wishlistLoading}
-            className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 shadow-md ${
+            className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
               inWishlist 
                 ? 'bg-red-500 text-white hover:bg-red-600' 
                 : 'bg-white text-slate-400 hover:text-red-500 hover:bg-red-50'
@@ -194,9 +194,10 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
 
           <button
             onClick={handleQuickView}
-            className={`absolute left-1/2 -translate-x-1/2 bottom-4 px-4 py-2 bg-white/90 hover:bg-white text-slate-700 rounded-lg text-sm font-medium shadow-lg transition-all duration-300 ${
+            className={`absolute left-1/2 -translate-x-1/2 bottom-4 px-4 py-2 bg-white/90 hover:bg-white text-slate-700 rounded-lg text-sm font-medium shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
               isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
+            aria-label={`Quick view ${product.name}`}
           >
             Quick View
           </button>
@@ -223,7 +224,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             <button
               onClick={handleAddToCart}
               disabled={loading || product.stock === 0}
-              className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+              className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
                 added
                   ? 'bg-green-500 text-white'
                   : 'bg-white text-slate-900 hover:bg-sky-50 active:scale-95'

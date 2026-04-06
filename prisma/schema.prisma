@@ -108,6 +108,7 @@ model Product {
   categoryRef ProductCollection? @relation(fields: [categoryId], references: [id])
   image       String?
   stock       Int            @default(0)
+  specifications Json?      // Product specifications as key-value pairs
   orderItems  OrderItem[]
   reviews     Review[]
   wishlistItems WishlistItem[]

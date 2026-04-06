@@ -111,18 +111,18 @@ export default function HomePage() {
             </p>
             
             <div className="flex flex-wrap gap-4 animate-slide-up stagger-2">
-              <Link 
-                href="/products" 
-                className="btn-primary text-base px-8 py-3.5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
-              >
-                Shop Now
-              </Link>
-              <Link 
-                href="/products?category=ELECTRONICS" 
-                className="btn-secondary text-base px-8 py-3.5 bg-white/10 text-white border-white/20 hover:bg-white/20"
-              >
-                Browse Electronics
-              </Link>
+            <Link 
+              href="/products" 
+              className="btn-primary text-base px-8 py-3.5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+            >
+              Shop Now
+            </Link>
+            <Link 
+              href="/products?category=ELECTRONICS" 
+              className="btn-secondary text-base px-8 py-3.5 bg-white/10 text-white border-white/20 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-slate-900"
+            >
+              Browse Electronics
+            </Link>
             </div>
 
             <div className="flex items-center gap-8 mt-12 animate-fade-in stagger-3">

@@ -29,6 +29,20 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
   const [adding, setAdding] = useState(false)
   const [inWishlist, setInWishlist] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement
+      setTimeout(() => closeButtonRef.current?.focus(), 50)
+    } else {
+      if (previousFocusRef.current) {
+        previousFocusRef.current.focus()
+        previousFocusRef.current = null
+      }
+    }
+  }, [isOpen])
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -45,10 +59,32 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
   }, [isOpen, onClose])
 
   useEffect(() => {
-    if (product) {
-      setQuantity(1)
+    if (isOpen && modalRef.current) {
+      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+      
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key === 'Tab') {
+          if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault()
+            lastElement?.focus()
+          } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault()
+            firstElement?.focus()
+          }
+        }
+      }
+      
+      document.addEventListener('keydown', handleTabKey)
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey)
+      }
     }
-  }, [product])
+  }, [isOpen])
 
   const handleAddToCart = async () => {
     if (!product) return
@@ -102,10 +138,16 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
       <div 
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
       
       <div 
@@ -113,8 +155,10 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
         className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-scale"
       >
         <button
+          ref={closeButtonRef}
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white rounded-full shadow-md transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white rounded-full shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+          aria-label="Close modal"
         >
           <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -161,6 +205,7 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
 
             <Link 
               href={`/products/${product.id}`}
+              id="modal-title"
               className="text-xl md:text-2xl font-bold text-slate-900 hover:text-sky-600 transition-colors"
               onClick={onClose}
             >
@@ -205,19 +250,21 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
               {product.stock > 0 ? (
                 <>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-slate-200 rounded-lg">
+                    <div className="flex items-center border border-slate-200 rounded-lg" role="group" aria-label="Quantity selector">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                         disabled={quantity <= 1}
-                        className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-sky-600 disabled:opacity-40"
+                        className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-sky-600 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1"
+                        aria-label="Decrease quantity"
                       >
                         -
                       </button>
-                      <span className="w-10 text-center font-semibold">{quantity}</span>
+                      <span className="w-10 text-center font-semibold" aria-live="polite">{quantity}</span>
                       <button
                         onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
                         disabled={quantity >= product.stock}
-                        className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-sky-600 disabled:opacity-40"
+                        className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-sky-600 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1"
+                        aria-label="Increase quantity"
                       >
                         +
                       </button>

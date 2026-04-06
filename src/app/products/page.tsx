@@ -16,6 +16,31 @@ interface Product {
   reviewCount?: number
 }
 
+// Price range presets for quick filtering
+const PRICE_PRESETS = [
+  { label: 'Under KES 1,000', min: '', max: '1000' },
+  { label: 'KES 1,000 - 5,000', min: '1000', max: '5000' },
+  { label: 'KES 5,000 - 10,000', min: '5000', max: '10000' },
+  { label: 'KES 10,000 - 50,000', min: '10000', max: '50000' },
+  { label: 'KES 50,000+', min: '50000', max: '' },
+]
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'rating', label: 'Top Rated' },
+  { value: 'popular', label: 'Most Popular' },
+  { value: 'name', label: 'Name A-Z' },
+]
+
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'All Categories' },
+  { value: 'ELECTRONICS', label: 'Electronics' },
+  { value: 'CLOTHING', label: 'Clothing' },
+  { value: 'BOOKS', label: 'Books' },
+]
+
 function ProductsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -37,6 +62,14 @@ function ProductsContent() {
   const maxPrice = searchParams.get('maxPrice') || ''
   const minRating = searchParams.get('minRating') || ''
   const inStock = searchParams.get('inStock') || ''
+
+  const isPresetActive = (preset: typeof PRICE_PRESETS[number]) => 
+    minPrice === preset.min && maxPrice === preset.max
+
+  const handlePresetClick = (preset: typeof PRICE_PRESETS[number]) => {
+    handleFilterChange('minPrice', preset.min)
+    handleFilterChange('maxPrice', preset.max)
+  }
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -150,6 +183,8 @@ function ProductsContent() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`btn-secondary flex items-center gap-2 lg:hidden`}
+            aria-expanded={showFilters}
+            aria-controls="product-filters"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -201,174 +236,228 @@ function ProductsContent() {
             )}
           </div>
 
-          <div className="flex gap-2">
-            <select
-              value={category}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="input-field md:w-40"
-            >
-              <option value="">All Categories</option>
-              <option value="ELECTRONICS">Electronics</option>
-              <option value="CLOTHING">Clothing</option>
-              <option value="BOOKS">Books</option>
-            </select>
-
+          <div className="flex gap-2 items-center">
             <select
               value={sort}
               onChange={(e) => handleSortChange(e.target.value)}
-              className="input-field md:w-44"
+              className="input-field md:w-48 font-medium"
             >
-              <option value="newest">Newest</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
-              <option value="popular">Most Popular</option>
-              <option value="name">Name</option>
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        {showFilters && (
-          <div className="card p-4 mb-6 animate-slide-down">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-900">Filters</h3>
-              {activeFilters.length > 0 && (
-                <button onClick={clearFilters} className="text-sm text-sky-600 hover:text-sky-700">
-                  Clear all
-                </button>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm text-slate-600 mb-1">Min Price (KES)</label>
-                <input
-                  type="number"
-                  value={minPrice}
-                  onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                  placeholder="0"
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-600 mb-1">Max Price (KES)</label>
-                <input
-                  type="number"
-                  value={maxPrice}
-                  onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                  placeholder="Any"
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-600 mb-1">Min Rating</label>
-                <select
-                  value={minRating}
-                  onChange={(e) => handleFilterChange('minRating', e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">Any</option>
-                  <option value="4">4+ stars</option>
-                  <option value="3">3+ stars</option>
-                  <option value="2">2+ stars</option>
-                </select>
-              </div>
-              <div className="flex items-center pt-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={inStock === 'true'}
-                    onChange={(e) => handleFilterChange('inStock', e.target.checked ? 'true' : '')}
-                    className="w-4 h-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500"
-                  />
-                  <span className="text-sm text-slate-700">In stock only</span>
-                </label>
-              </div>
-            </div>
-
-            {activeFilters.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-                {activeFilters.map((filter) => (
-                  <span
-                    key={filter?.key}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-sky-100 text-sky-700 rounded-full text-sm"
-                  >
-                    {filter?.label}
-                    <button
-                      onClick={() => handleFilterChange(filter!.key, '')}
-                      className="hover:text-sky-900"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {(showFilters || activeFilters.length > 0) && (
+            <aside id="product-filters" className={`lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+              <div className="card p-5 sticky top-24">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    Filters
+                  </h3>
+                  {activeFilters.length > 0 && (
+                    <button onClick={clearFilters} className="text-sm text-sky-600 hover:text-sky-700 font-medium">
+                      Clear all
                     </button>
-                  </span>
+                  )}
+                </div>
+
+                <div className="space-y-6" role="group" aria-labelledby="filters-category">
+                  <div>
+                    <h4 id="filters-category" className="text-sm font-semibold text-slate-700 mb-3">Category</h4>
+                    <select
+                      value={category}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      className="input-field w-full"
+                    >
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div role="group" aria-labelledby="filters-price">
+                    <h4 id="filters-price" className="text-sm font-semibold text-slate-700 mb-3">Price Range</h4>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {PRICE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          onClick={() => handlePresetClick(preset)}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
+                            isPresetActive(preset)
+                              ? 'bg-sky-500 text-white shadow-md'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-xs text-slate-500 mb-1">Min</label>
+                        <input
+                          type="number"
+                          value={minPrice}
+                          onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                          placeholder="0"
+                          className="input-field w-full text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-slate-500 mb-1">Max</label>
+                        <input
+                          type="number"
+                          value={maxPrice}
+                          onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                          placeholder="Any"
+                          className="input-field w-full text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div role="group" aria-labelledby="filters-rating">
+                    <h4 id="filters-rating" className="text-sm font-semibold text-slate-700 mb-3">Rating</h4>
+                    <div className="flex gap-1" role="group" aria-label="Filter by minimum rating">
+                      {[4, 3, 2].map((rating) => (
+                        <button
+                          key={rating}
+                          onClick={() => handleFilterChange('minRating', minRating === rating.toString() ? '' : rating.toString())}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2 text-sm rounded-lg transition-all ${
+                            minRating === rating.toString()
+                              ? 'bg-amber-400 text-white shadow-md'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                          aria-label={`${rating} stars and up`}
+                          aria-pressed={minRating === rating.toString()}
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <span>{rating}+</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={inStock === 'true'}
+                          onChange={(e) => handleFilterChange('inStock', e.target.checked ? 'true' : '')}
+                          className="w-5 h-5 rounded border-slate-300 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer"
+                        />
+                        {inStock === 'true' && (
+                          <svg className="absolute w-5 h-5 text-white pointer-events-none top-0 left-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-slate-700">In stock only</span>
+                    </label>
+                  </div>
+                </div>
+
+                {activeFilters.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-slate-100">
+                    {activeFilters.map((filter) => (
+                      <span
+                        key={filter.key}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-100 text-sky-700 rounded-full text-sm font-medium"
+                      >
+                        {filter.label}
+                        <button
+                          onClick={() => handleFilterChange(filter.key, '')}
+                          className="hover:text-sky-900 p-0.5 rounded-full hover:bg-sky-200 transition-colors"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </aside>
+          )}
+
+          <main className="flex-1">
+            {!loading && (search || activeFilters.length > 0) && (
+              <p className="text-slate-600 mb-4" aria-live="polite">
+                {total === 1 ? '1 result' : `${total} results`}
+                {search && ` for '${search}'`}
+                {activeFilters.length > 0 && ` (filtered)`}
+              </p>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="card animate-pulse">
+                    <div className="aspect-square bg-slate-200" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-slate-200 rounded w-3/4" />
+                      <div className="h-6 bg-slate-200 rounded w-1/2" />
+                      <div className="h-10 bg-slate-200 rounded" />
+                    </div>
+                  </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {!loading && search && (
-          <p className="text-slate-600 mb-4">
-            {total === 1 ? '1 result' : `${total} results`} for '{search}'
-            {activeFilters.length > 0 && ` (filtered)`}
-          </p>
-        )}
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="card animate-pulse">
-                <div className="aspect-square bg-slate-200" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-slate-200 rounded w-3/4" />
-                  <div className="h-6 bg-slate-200 rounded w-1/2" />
-                  <div className="h-10 bg-slate-200 rounded" />
+            ) : products.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : products.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
 
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-8">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="btn-secondary"
-                >
-                  Previous
-                </button>
-                <span className="flex items-center px-4 text-slate-600">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(Math.min(totalPages, page + 1))}
-                  disabled={page === totalPages}
-                  className="btn-secondary"
-                >
-                  Next
-                </button>
+                {totalPages > 1 && (
+                  <div className="flex justify-center gap-2 mt-8">
+                    <button
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      disabled={page === 1}
+                      className="btn-secondary"
+                    >
+                      Previous
+                    </button>
+                    <span className="flex items-center px-4 text-slate-600">
+                      Page {page} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage(Math.min(totalPages, page + 1))}
+                      disabled={page === totalPages}
+                      className="btn-secondary"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-slate-500 text-lg">No products found.</p>
+                {activeFilters.length > 0 && (
+                  <button onClick={clearFilters} className="mt-4 text-sky-600 hover:text-sky-700 font-medium">
+                    Clear filters
+                  </button>
+                )}
               </div>
             )}
-          </>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-slate-500 text-lg">No products found.</p>
-            {activeFilters.length > 0 && (
-              <button onClick={clearFilters} className="mt-4 text-sky-600 hover:text-sky-700">
-                Clear filters
-              </button>
-            )}
-          </div>
-        )}
+          </main>
+        </div>
       </div>
     </div>
   )

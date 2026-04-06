@@ -13,5 +13,12 @@ export async function GET(
     return NextResponse.json({ error: 'Product not found' }, { status: 404 })
   }
 
-  return NextResponse.json(product)
+  // Parse specifications if it's a string
+  const specifications = product.specifications 
+    ? typeof product.specifications === 'string' 
+      ? JSON.parse(product.specifications) 
+      : product.specifications
+    : null
+
+  return NextResponse.json({ ...product, specifications })
 }

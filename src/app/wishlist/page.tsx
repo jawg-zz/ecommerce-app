@@ -173,7 +173,7 @@ export default function WishlistPage() {
                   <button
                     onClick={() => handleAddToCart(product.id, product.name, product.price, product.image, 10)}
                     disabled={loading === product.id}
-                    className="flex-1 btn-primary py-2 text-sm flex items-center justify-center gap-2"
+                    className="flex-1 btn-primary py-2 text-sm flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
                   >
                     {loading === product.id ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -24,6 +24,7 @@ function FloatingInput({
   touched,
   placeholder,
   autoComplete,
+  'aria-describedby': ariaDescribedBy,
 }: {
   label: string
   name: string
@@ -35,11 +36,13 @@ function FloatingInput({
   touched?: boolean
   placeholder?: string
   autoComplete?: string
+  'aria-describedby'?: string
 }) {
   const [focused, setFocused] = useState(false)
   const hasValue = value.length > 0
   const showFloating = focused || hasValue
   const hasError = touched && error
+  const errorId = `${name}-error`
 
   return (
     <div className="relative">
@@ -62,6 +65,8 @@ function FloatingInput({
           }}
           onFocus={() => setFocused(true)}
           autoComplete={autoComplete}
+          aria-invalid={hasError ? 'true' : undefined}
+          aria-describedby={ariaDescribedBy || undefined}
           className={`peer w-full px-4 pt-6 pb-2 bg-transparent border rounded-xl outline-none transition-all duration-200 ${
             hasError 
               ? 'border-red-400 text-red-900' 
@@ -92,7 +97,7 @@ function FloatingInput({
         )}
       </div>
       {hasError && (
-        <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1 animate-slide-down">
+        <p id={errorId} className="mt-1.5 text-sm text-red-500 flex items-center gap-1 animate-slide-down" role="alert">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
           </svg>
@@ -271,7 +276,7 @@ function LoginForm() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm flex items-start gap-2 animate-scale-in">
+              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm flex items-start gap-2 animate-scale-in" role="alert">
                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
@@ -281,42 +286,45 @@ function LoginForm() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               {!isLogin && (
-                <FloatingInput
-                  label="Full Name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={errors.name}
-                  touched={touched.name}
-                  autoComplete="name"
-                />
-              )}
-
               <FloatingInput
-                label="Email Address"
-                name="email"
-                type="email"
-                value={formData.email}
+                label="Full Name"
+                name="name"
+                type="text"
+                value={formData.name}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                error={errors.email}
-                touched={touched.email}
-                autoComplete="email"
+                error={errors.name}
+                touched={touched.name}
+                autoComplete="name"
+                aria-describedby={errors.name ? 'name-error' : undefined}
               />
+            )}
 
-              <FloatingInput
-                label="Password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.password}
-                touched={touched.password}
-                autoComplete={isLogin ? 'current-password' : 'new-password'}
-              />
+            <FloatingInput
+              label="Email Address"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.email}
+              touched={touched.email}
+              autoComplete="email"
+              aria-describedby={errors.email ? 'email-error' : undefined}
+            />
+
+            <FloatingInput
+              label="Password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.password}
+              touched={touched.password}
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              aria-describedby={errors.password ? 'password-error' : undefined}
+            />
                 
               {!isLogin && formData.password && passwordStrength && (
                 <div className="mt-2 animate-fade-in">

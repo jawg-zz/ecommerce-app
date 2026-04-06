@@ -21,6 +21,7 @@ interface Product {
   stock: number
   averageRating?: number
   reviewCount?: number
+  specifications?: Record<string, string> | null
 }
 
 interface Review {
@@ -69,6 +70,7 @@ function Breadcrumbs({ product }: { product: Product }) {
 function ProductImage({ product }: { product: Product }) {
   const [isZoomed, setIsZoomed] = useState(false)
   const [position, setPosition] = useState({ x: 50, y: 50 })
+  const [showLightbox, setShowLightbox] = useState(false)
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -77,66 +79,112 @@ function ProductImage({ product }: { product: Product }) {
     setPosition({ x, y })
   }
 
-  return (
-    <div 
-      className="aspect-square bg-slate-100 rounded-2xl overflow-hidden relative cursor-zoom-in"
-      onMouseEnter={() => setIsZoomed(true)}
-      onMouseLeave={() => setIsZoomed(false)}
-      onMouseMove={handleMouseMove}
-    >
-      {product.image ? (
-        <div className="w-full h-full overflow-hidden relative">
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            priority
-            quality={85}
-            className={`object-cover transition-transform duration-300 ${
-              isZoomed ? 'scale-150' : 'scale-100'
-            }`}
-            style={isZoomed ? { transformOrigin: `${position.x}% ${position.y}%` } : undefined}
-          />
-        </div>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-slate-300">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-32 w-32"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </div>
-      )}
-      
-      {product.stock === 0 && (
-        <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-[1px]">
-          <span className="bg-red-500 text-white px-6 py-2 rounded-full text-lg font-semibold shadow-lg">
-            Out of Stock
-          </span>
-        </div>
-      )}
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showLightbox) {
+        setShowLightbox(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showLightbox])
 
-      {isZoomed && (
-        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 shadow-lg">
-          <span className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+  return (
+    <>
+      <div 
+        className="aspect-square bg-slate-100 rounded-2xl overflow-hidden relative cursor-zoom-in"
+        onMouseEnter={() => setIsZoomed(true)}
+        onMouseLeave={() => setIsZoomed(false)}
+        onMouseMove={handleMouseMove}
+        onClick={() => setShowLightbox(true)}
+        role="button"
+        tabIndex={0}
+        aria-label="Click to view full size"
+      >
+        {product.image ? (
+          <div className="w-full h-full overflow-hidden relative">
+            <Image
+              src={product.image}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority
+              quality={85}
+              className={`object-cover transition-transform duration-300 ${
+                isZoomed ? 'scale-150' : 'scale-100'
+              }`}
+              style={isZoomed ? { transformOrigin: `${position.x}% ${position.y}%` } : undefined}
+            />
+          </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-300">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-32 w-32"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
-            Hover to zoom
-          </span>
+          </div>
+        )}
+        
+        {product.stock === 0 && (
+          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-[1px]">
+            <span className="bg-red-500 text-white px-6 py-2 rounded-full text-lg font-semibold shadow-lg">
+              Out of Stock
+            </span>
+          </div>
+        )}
+
+        {isZoomed && (
+          <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 shadow-lg">
+            <span className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+              Hover to zoom, click for full view
+            </span>
+          </div>
+        )}
+      </div>
+
+      {showLightbox && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setShowLightbox(false)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+            onClick={() => setShowLightbox(false)}
+            aria-label="Close lightbox"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          {product.image && (
+            <Image
+              src={product.image}
+              alt={product.name}
+              width={800}
+              height={800}
+              className="max-w-full max-h-full object-contain"
+              priority
+            />
+          )}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm">
+            Press ESC to close
+          </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -186,6 +234,118 @@ function StarRating({
           {currentRating.toFixed(1)} ({count} reviews)
         </span>
       )}
+    </div>
+  )
+}
+
+function ProductSpecifications({ specifications }: { specifications: Record<string, string> }) {
+  const entries = Object.entries(specifications)
+  
+  if (entries.length === 0) return null
+
+  return (
+    <div className="mt-16">
+      <h2 className="text-2xl font-bold text-slate-900 mb-6">Specifications</h2>
+      <div className="card overflow-hidden">
+        <table className="w-full">
+          <tbody>
+            {entries.map(([key, value], index) => (
+              <tr key={key} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                <td className="px-6 py-4 text-sm font-medium text-slate-600 w-1/3 border-r border-slate-100">
+                  {key}
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-900">
+                  {value}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function SocialShare({ product }: { product: Product }) {
+  const [copied, setCopied] = useState(false)
+  const productUrl = typeof window !== 'undefined' ? window.location.href : ''
+  const productName = encodeURIComponent(product.name)
+
+  const shareOptions = [
+    {
+      name: 'Facebook',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+        </svg>
+      ),
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`,
+      color: 'bg-blue-600 hover:bg-blue-700 text-white',
+    },
+    {
+      name: 'Twitter',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      ),
+      url: `https://twitter.com/intent/tweet?text=${productName}&url=${encodeURIComponent(productUrl)}`,
+      color: 'bg-black hover:bg-gray-800 text-white',
+    },
+    {
+      name: 'WhatsApp',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.06 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+      ),
+      url: `https://wa.me/?text=${productName}%20${encodeURIComponent(productUrl)}`,
+      color: 'bg-green-500 hover:bg-green-600 text-white',
+    },
+  ]
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(productUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      console.error('Failed to copy link')
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3 mt-6">
+      <span className="text-sm font-medium text-slate-600">Share:</span>
+      <div className="flex gap-2">
+        {shareOptions.map((option) => (
+          <a
+            key={option.name}
+            href={option.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`p-2 rounded-lg transition-colors ${option.color}`}
+            aria-label={`Share on ${option.name}`}
+          >
+            {option.icon}
+          </a>
+        ))}
+        <button
+          onClick={handleCopyLink}
+          className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+          aria-label="Copy link"
+        >
+          {copied ? (
+            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          )}
+        </button>
+      </div>
     </div>
   )
 }
@@ -493,6 +653,7 @@ export default function ProductDetailPage() {
   const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed, user } = useApp()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [alsoBought, setAlsoBought] = useState<Product[]>([])
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
@@ -519,6 +680,12 @@ export default function ProductDetailPage() {
         const relatedRes = await fetch(`/api/products?category=${data.category}&limit=4`)
         const relatedData = await relatedRes.json()
         setRelatedProducts((relatedData.products || []).filter((p: Product) => p.id !== data.id).slice(0, 4))
+
+        const recommendationsRes = await fetch(`/api/products/${params.id}/recommendations?limit=4`)
+        if (recommendationsRes.ok) {
+          const recommendations = await recommendationsRes.json()
+          setAlsoBought(recommendations.alsoBought || [])
+        }
       } else {
         router.push('/products')
       }
@@ -768,10 +935,27 @@ export default function ProductDetailPage() {
                 1-year warranty included
               </div>
             </div>
+
+            <SocialShare product={product} />
           </div>
         </div>
 
+        {product.specifications && Object.keys(product.specifications).length > 0 && (
+          <ProductSpecifications specifications={product.specifications} />
+        )}
+
         <ReviewsSection productId={product.id} />
+
+        {alsoBought.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-slate-900 mb-8">Customers Also Bought</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {alsoBought.map((product) => (
+                <ProductCard key={product.id} product={product} priority={alsoBought.indexOf(product) < 2} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {relatedProducts.length > 0 && (
           <div className="mt-16">

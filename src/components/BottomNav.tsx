@@ -79,7 +79,7 @@ export function BottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 lg:hidden safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 lg:hidden safe-area-pb" aria-label="Main navigation">
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => (
           <Link

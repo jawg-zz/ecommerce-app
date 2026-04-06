@@ -14,9 +14,10 @@ import {
 import { KENYA_COUNTIES, ShippingAddress } from '@/types'
 import toast from 'react-hot-toast'
 
-type CheckoutStep = 'shipping' | 'payment' | 'confirmation'
+type CheckoutStep = 'information' | 'payment' | 'confirmation'
 
 interface FormErrors {
+  email?: string
   name?: string
   address?: string
   city?: string
@@ -61,12 +62,11 @@ function getEstimatedDelivery(): string {
 function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
   const steps: { key: CheckoutStep; label: string; icon: React.ReactElement }[] = [
     { 
-      key: 'shipping', 
-      label: 'Shipping',
+      key: 'information', 
+      label: 'Information',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       )
     },
@@ -99,7 +99,7 @@ function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
   }
 
   return (
-    <div className="mb-10">
+    <nav aria-label="Checkout progress" className="mb-8">
       <div className="flex items-center justify-center max-w-lg mx-auto">
         {steps.map((step, index) => {
           const status = getStepStatus(step.key)
@@ -116,20 +116,22 @@ function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
                       ? 'bg-gradient-to-br from-sky-400 to-sky-500 text-white scale-110 shadow-lg'
                       : 'bg-slate-100 text-slate-400'
                   }`}
+                  aria-current={status === 'current' ? 'step' : undefined}
                 >
                   {status === 'completed' ? (
-                    <svg className="w-6 h-6 animate-checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 animate-checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                   ) : status === 'current' ? (
                     <div className="relative">
+                      <span className="sr-only">Current step: </span>
                       {step.icon}
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full">
                         <span className="absolute inset-0 rounded-full bg-sky-400 animate-ping opacity-75"></span>
                       </span>
                     </div>
                   ) : (
-                    step.icon
+                    <span className="sr-only">Step: </span>
                   )}
                 </div>
                 <span className={`absolute -bottom-6 text-xs font-medium whitespace-nowrap ${
@@ -159,7 +161,7 @@ function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }
 
@@ -191,9 +193,11 @@ function SecurityBadges() {
 function CheckoutPageContent() {
   const router = useRouter()
   const { user, cart, setCart, refreshCart } = useApp()
+  const [isGuestCheckout, setIsGuestCheckout] = useState(false)
+  const [guestEmail, setGuestEmail] = useState('')
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
-  const [currentStep, setCurrentStep] = useState<CheckoutStep>('shipping')
+  const [currentStep, setCurrentStep] = useState<CheckoutStep>('information')
   const [phone, setPhone] = useState('')
   const [phoneValid, setPhoneValid] = useState(false)
   const [checkoutRequestId, setCheckoutRequestId] = useState('')
@@ -224,15 +228,13 @@ function CheckoutPageContent() {
   })
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    // Allow guest checkout - just refresh cart
     refreshCart()
-  }, [user, router, refreshCart])
+  }, [refreshCart])
 
   useEffect(() => {
     const fetchSavedAddresses = async () => {
+      // Skip for guest checkout
       if (!user) return
       try {
         const res = await fetch('/api/orders')
@@ -378,6 +380,10 @@ function CheckoutPageContent() {
 
   const validateField = (field: keyof FormErrors, value: string) => {
     switch (field) {
+      case 'email':
+        if (!value.trim()) return 'Email is required'
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email'
+        return undefined
       case 'name':
         if (!value.trim()) return 'Full name is required'
         if (value.trim().length < 2) return 'Name must be at least 2 characters'
@@ -441,6 +447,7 @@ function CheckoutPageContent() {
   }
 
   const isFormValid = useCallback(() => {
+    if (isGuestCheckout && !validateField('email', guestEmail)) return false
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
@@ -449,7 +456,7 @@ function CheckoutPageContent() {
     const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
     return !nameError && !addressError && !cityError && !stateError && !zipCodeError && phoneValidation.isValid
-  }, [shippingAddress, phone])
+  }, [shippingAddress, phone, isGuestCheckout, guestEmail])
 
   const cancelPayment = useCallback(async () => {
     cancelRef.current = true
@@ -472,7 +479,7 @@ function CheckoutPageContent() {
       }
     }
     
-    setCurrentStep('shipping')
+    setCurrentStep('information')
     setError('')
     setProcessing(false)
     refreshCart()
@@ -541,8 +548,13 @@ function CheckoutPageContent() {
 
   const handleSubmitShipping = async (e: React.FormEvent) => {
     e.preventDefault()
-    setTouched({ name: true, address: true, city: true, state: true, zipCode: true })
     
+    const newTouched: Record<string, boolean> = { name: true, address: true, city: true, state: true, zipCode: true, phone: true }
+    if (isGuestCheckout) newTouched.email = true
+    
+    setTouched(newTouched)
+    
+    const emailError = isGuestCheckout ? validateField('email', guestEmail) : undefined
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
@@ -551,6 +563,7 @@ function CheckoutPageContent() {
     const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
     setFormErrors({
+      email: emailError,
       name: nameError,
       address: addressError,
       city: cityError,
@@ -563,7 +576,7 @@ function CheckoutPageContent() {
       toast.error(phoneValidation.error || 'Please enter a valid phone number')
     }
 
-    if (nameError || addressError || cityError || stateError || zipCodeError || !phoneValidation.isValid) {
+    if (emailError || nameError || addressError || cityError || stateError || zipCodeError || !phoneValidation.isValid) {
       return
     }
 
@@ -572,7 +585,7 @@ function CheckoutPageContent() {
 
   const handlePaymentTimeout = async (orderId: string) => {
     setError('Payment timed out. Please try again.')
-    setCurrentStep('shipping')
+    setCurrentStep('information')
     
     try {
       await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
@@ -588,9 +601,7 @@ function CheckoutPageContent() {
   const tax = 0
   const total = subtotal + shipping + tax
 
-  if (!user) {
-    return null
-  }
+  // Allow guest checkout - no redirect to login
 
   const getStatusMessage = () => {
     switch (paymentStage) {
@@ -817,6 +828,53 @@ function CheckoutPageContent() {
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmitShipping} className="card p-6">
+              {/* Guest Checkout Option */}
+              {!user && (
+                <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-amber-800">Guest Checkout</p>
+                        <p className="text-sm text-amber-600">No account required - just enter your email below</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Email field for guest checkout */}
+              {!user && (
+                <div className="mb-6">
+                  <label htmlFor="guest-email" className="block text-sm font-medium text-slate-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="guest-email"
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    onBlur={() => { setTouched(prev => ({ ...prev, email: true })); setFormErrors(prev => ({ ...prev, email: validateField('email', guestEmail) })) }}
+                    aria-invalid={touched.email && formErrors.email ? 'true' : undefined}
+                    aria-describedby={touched.email && formErrors.email ? 'guest-email-error' : undefined}
+                    className={`input-field ${touched.email && formErrors.email ? 'border-red-500' : ''}`}
+                    placeholder="you@example.com"
+                  />
+                  {touched.email && formErrors.email && (
+                    <p id="guest-email-error" className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">
+                    We&apos;ll send your order confirmation here
+                  </p>
+                </div>
+              )}
+
               <h2 className="text-lg font-semibold mb-6">Shipping Address</h2>
 
               {savedAddresses.length > 0 && !useSavedAddress && (
@@ -867,86 +925,123 @@ function CheckoutPageContent() {
               )}
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-                  {error}
-                  {error && (
-                    <button
-                      type="button"
-                      onClick={handleRetry}
-                      className="ml-2 text-red-700 underline font-medium hover:text-red-800"
-                    >
-                      Try Again
-                    </button>
-                  )}
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-red-800">Something went wrong</p>
+                      <p className="text-sm text-red-600 mt-1">{error}</p>
+                      {error && (
+                        <button
+                          type="button"
+                          onClick={handleRetry}
+                          className="mt-3 text-sm font-medium text-red-700 hover:text-red-900 underline"
+                        >
+                          Try Again
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id="name"
                     type="text"
                     autoComplete="name"
                     value={shippingAddress.name}
                     onChange={(e) => handleAddressChange('name', e.target.value)}
                     onBlur={() => handleBlur('name')}
-                    className={`input-field ${touched.name && formErrors.name ? 'border-red-500' : ''}`}
+                    aria-invalid={touched.name && formErrors.name ? 'true' : undefined}
+                    aria-describedby={touched.name && formErrors.name ? 'name-error' : undefined}
+                    className={`input-field ${touched.name && formErrors.name ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                     placeholder="John Doe"
                   />
                   {touched.name && formErrors.name && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                    <p id="name-error" className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {formErrors.name}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="address" className="block text-sm font-medium text-slate-700 mb-1">
                     Address <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id="address"
                     type="text"
                     autoComplete="street-address"
                     value={shippingAddress.address}
                     onChange={(e) => handleAddressChange('address', e.target.value)}
                     onBlur={() => handleBlur('address')}
-                    className={`input-field ${touched.address && formErrors.address ? 'border-red-500' : ''}`}
-                    placeholder="123 Main Street, Apt 4B"
+                    aria-invalid={touched.address && formErrors.address ? 'true' : undefined}
+                    aria-describedby={touched.address && formErrors.address ? 'address-error' : undefined}
+                    className={`input-field ${touched.address && formErrors.address ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                    placeholder="e.g., 123 Main Street, Westlands"
                   />
                   {touched.address && formErrors.address && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+                    <p id="address-error" className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {formErrors.address}
+                    </p>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-1">
                       City <span className="text-red-500">*</span>
                     </label>
                     <input
+                      id="city"
                       type="text"
                       autoComplete="address-level2"
                       value={shippingAddress.city}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       onBlur={() => handleBlur('city')}
-                      className={`input-field ${touched.city && formErrors.city ? 'border-red-500' : ''}`}
+                      aria-invalid={touched.city && formErrors.city ? 'true' : undefined}
+                      aria-describedby={touched.city && formErrors.city ? 'city-error' : undefined}
+                      className={`input-field ${touched.city && formErrors.city ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                       placeholder="Nairobi"
                     />
                     {touched.city && formErrors.city && (
-                      <p className="text-red-500 text-xs mt-1">{formErrors.city}</p>
+                      <p id="city-error" className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {formErrors.city}
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-1">
                       County <span className="text-red-500">*</span>
                     </label>
                     <select
+                      id="state"
                       autoComplete="address-level1"
                       value={shippingAddress.state}
                       onChange={(e) => handleAddressChange('state', e.target.value)}
                       onBlur={() => handleBlur('state')}
-                      className={`input-field ${touched.state && formErrors.state ? 'border-red-500' : ''}`}
+                      aria-invalid={touched.state && formErrors.state ? 'true' : undefined}
+                      aria-describedby={touched.state && formErrors.state ? 'state-error' : undefined}
+                      className={`input-field ${touched.state && formErrors.state ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                     >
                       <option value="">Select County</option>
                       {KENYA_COUNTIES.map((county) => (
@@ -956,35 +1051,49 @@ function CheckoutPageContent() {
                       ))}
                     </select>
                     {touched.state && formErrors.state && (
-                      <p className="text-red-500 text-xs mt-1">{formErrors.state}</p>
+                      <p id="state-error" className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {formErrors.state}
+                      </p>
                     )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label htmlFor="zipCode" className="block text-sm font-medium text-slate-700 mb-1">
                       ZIP Code <span className="text-red-500">*</span>
                     </label>
                     <input
+                      id="zipCode"
                       type="text"
                       autoComplete="postal-code"
                       value={shippingAddress.zipCode}
                       onChange={(e) => handleAddressChange('zipCode', e.target.value)}
                       onBlur={() => handleBlur('zipCode')}
-                      className={`input-field ${touched.zipCode && formErrors.zipCode ? 'border-red-500' : ''}`}
+                      aria-invalid={touched.zipCode && formErrors.zipCode ? 'true' : undefined}
+                      aria-describedby={touched.zipCode && formErrors.zipCode ? 'zipCode-error' : undefined}
+                      className={`input-field ${touched.zipCode && formErrors.zipCode ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                       placeholder="00100"
                     />
                     {touched.zipCode && formErrors.zipCode && (
-                      <p className="text-red-500 text-xs mt-1">{formErrors.zipCode}</p>
+                      <p id="zipCode-error" className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {formErrors.zipCode}
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label htmlFor="country" className="block text-sm font-medium text-slate-700 mb-1">
                       Country <span className="text-red-500">*</span>
                     </label>
                     <select
+                      id="country"
                       value={shippingAddress.country}
                       onChange={(e) => handleAddressChange('country', e.target.value)}
                       className="input-field"
@@ -1015,18 +1124,21 @@ function CheckoutPageContent() {
                     </ol>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+              <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
                       M-Pesa Phone Number <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <input
+                        id="phone"
                         type="tel"
                         autoComplete="tel"
                         inputMode="tel"
                         placeholder="0712 345 678"
                         value={phone}
                         onChange={handlePhoneChange}
+                        aria-invalid={phoneError && phone ? 'true' : undefined}
+                        aria-describedby={phoneError && phone ? 'phone-error' : undefined}
                         className={`input-field pr-10 ${phoneError && phone ? 'border-red-500' : ''} ${phoneValid ? 'border-green-500' : ''}`}
                       />
                       {phoneValid && (
@@ -1044,7 +1156,7 @@ function CheckoutPageContent() {
                       )}
                     </div>
                     {phoneError && phone && (
-                      <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+                      <p id="phone-error" className="text-red-500 text-xs mt-1">{phoneError}</p>
                     )}
                     <p className="text-xs text-slate-500 mt-1">
                       Format: 0712 345 678 or 254 712 345 678
@@ -1058,8 +1170,13 @@ function CheckoutPageContent() {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="card p-6 h-fit lg:sticky lg:top-24">
-              <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+            <div className="card p-6 h-fit lg:sticky lg:top-24 border-2 border-sky-100 shadow-lg shadow-sky-50">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <h2 className="text-lg font-semibold text-slate-900">Order Summary</h2>
+              </div>
 
               <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
                 {cart.items.map((item) => (
@@ -1082,10 +1199,12 @@ function CheckoutPageContent() {
                           </svg>
                         </div>
                       )}
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-slate-800 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        {item.quantity}
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">{item.product.name}</p>
-                      <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
                       <p className="text-sm font-medium text-slate-700">{formatPrice(item.product.price * item.quantity)}</p>
                     </div>
                   </div>
@@ -1099,7 +1218,7 @@ function CheckoutPageContent() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Shipping</span>
-                  <span className="text-green-600">Free</span>
+                  <span className="text-green-600 font-medium">Free</span>
                 </div>
                 {tax > 0 && (
                   <div className="flex justify-between text-sm">
@@ -1110,19 +1229,19 @@ function CheckoutPageContent() {
               </div>
 
               <div className="border-t border-slate-200 pt-4 mb-4">
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span>
-                  <span className="text-green-600">{formatPrice(total)}</span>
+                <div className="flex justify-between font-bold text-xl">
+                  <span className="text-slate-900">Total</span>
+                  <span className="text-sky-600">{formatPrice(total)}</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">KES (Kenyan Shillings)</p>
               </div>
 
-              <div className="bg-slate-50 rounded-lg p-3 mb-4">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <svg className="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-4 border border-green-200">
+                <div className="flex items-center gap-2 text-sm text-green-700">
+                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5.05 3.636a1 1 0 010 1.414 7 7 0 000 9.9 1 1 0 11-1.414 1.414 9 9 0 010-12.728 1 1 0 011.414 0zm9.9 0a1 1 0 011.414 0 9 9 0 010 12.728 1 1 0 11-1.414-1.414 7 7 0 000-9.9 1 1 0 010-1.414zM7.879 6.464a1 1 0 010 1.414 3 3 0 000 4.243 1 1 0 11-1.415 1.414 5 5 0 010-7.07 1 1 0 011.415 0zm4.242 0a1 1 0 011.415 0 5 5 0 010 7.072 1 1 0 01-1.415-1.415 3 3 0 000-4.242 1 1 0 010-1.415z" clipRule="evenodd" />
                   </svg>
-                  <span>Estimated delivery: <strong>{getEstimatedDelivery()}</strong></span>
+                  <span>Estimated delivery: <strong className="text-green-800">{getEstimatedDelivery()}</strong></span>
                 </div>
               </div>
 
