@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ProductCard } from '@/components/ProductCard'
 import { RecentlyViewed } from '@/components/RecentlyViewed'
+import { useApp } from '@/components/Providers'
 
 interface Product {
   id: string
@@ -59,7 +60,9 @@ const trustBadges = [
 ]
 
 export default function HomePage() {
+  const { recentlyViewed } = useApp()
   const [products, setProducts] = useState<Product[]>([])
+  const [recommended, setRecommended] = useState<Product[]>([])
   const [categories, setCategories] = useState<{ name: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
@@ -77,6 +80,22 @@ export default function HomePage() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (recentlyViewed.length === 0) return
+
+    const categories = [...new Set(recentlyViewed.map(p => p.category))].filter(Boolean)
+    const viewedIds = recentlyViewed.map(p => p.id)
+
+    const params = new URLSearchParams()
+    if (categories.length > 0) params.set('categories', categories.join(','))
+    if (viewedIds.length > 0) params.set('viewedIds', viewedIds.join(','))
+
+    fetch(`/api/recommendations/homepage?${params.toString()}`)
+      .then(r => r.json())
+      .then(data => setRecommended(data.products || []))
+      .catch(() => {})
+  }, [recentlyViewed])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -303,6 +322,34 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {recommended.length > 0 && (
+        <section className="py-16 md:py-20">
+          <div className="container-custom">
+            <div className="flex items-end justify-between mb-8 md:mb-12">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                  Recommended For You
+                </h2>
+                <p className="text-slate-500">
+                  Based on your browsing history
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {recommended.slice(0, 4).map((product, index) => (
+                <div 
+                  key={product.id} 
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <ProductCard product={product} priority={index < 2} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <RecentlyViewed />
 

@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json()
-    const { rating, title, content } = body
+    const { rating, title, content, photos } = body
 
     if (rating !== undefined && (rating < 1 || rating > 5)) {
       return NextResponse.json(
@@ -84,6 +84,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (rating !== undefined) updateData.rating = rating
     if (title !== undefined) updateData.title = title?.trim() || null
     if (content !== undefined) updateData.content = content?.trim() || null
+    if (photos !== undefined) updateData.photos = photos
 
     const review = await prisma.review.update({
       where: { id: reviewId },

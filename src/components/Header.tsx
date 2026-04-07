@@ -20,6 +20,7 @@ export function Header() {
   const [cartAnimating, setCartAnimating] = useState(false)
   const [prevCartCount, setPrevCartCount] = useState(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchDropdownRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
   const cartCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -50,6 +51,10 @@ export function Header() {
     const handleClickOutside = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false)
+      }
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target as Node) && !searchInputRef.current?.contains(e.target as Node)) {
+        setSearchResults([])
+        setSearchQuery('')
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -361,7 +366,7 @@ export function Header() {
             }}
           />
           <div className="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 animate-scale-in">
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div ref={searchDropdownRef} className="bg-white rounded-2xl shadow-2xl overflow-hidden">
               <form onSubmit={handleSearchSubmit}>
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
                   <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -248,6 +248,9 @@ function OrderConfirmationContent() {
               <Link href={`/orders?highlight=${order.id}`} className="flex-1 btn-primary py-3 text-center">
                 View Order Details
               </Link>
+              <Link href={`/order-tracking?orderId=${order.id}`} className="flex-1 btn-secondary py-3 text-center">
+                Track Order
+              </Link>
               <Link href="/products" className="flex-1 btn-secondary py-3 text-center">
                 Continue Shopping
               </Link>

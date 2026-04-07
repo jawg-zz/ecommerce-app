@@ -29,6 +29,7 @@ interface Review {
   rating: number
   title: string | null
   content: string | null
+  photos: string[]
   helpful: number
   verified: boolean
   createdAt: string
@@ -356,17 +357,25 @@ function ReviewsSection({ productId }: { productId: string }) {
   const [stats, setStats] = useState<{ averageRating: number; totalReviews: number; distribution: Record<number, number> } | null>(null)
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState('newest')
+  const [ratingFilter, setRatingFilter] = useState<number | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [newReview, setNewReview] = useState({ rating: 5, title: '', content: '' })
+  const [newReview, setNewReview] = useState({ rating: 5, title: '', content: '', photos: '' })
 
   useEffect(() => {
     fetchReviews()
-  }, [productId, sort])
+  }, [productId, sort, ratingFilter])
 
   const fetchReviews = async () => {
+    setLoading(true)
     try {
-      const res = await fetch(`/api/reviews?productId=${productId}&sort=${sort}`)
+      const params = new URLSearchParams()
+      params.set('productId', productId)
+      params.set('sort', sort)
+      if (ratingFilter) {
+        params.set('rating', ratingFilter.toString())
+      }
+      const res = await fetch(`/api/reviews?${params.toString()}`)
       const data = await res.json()
       setReviews(data.reviews || [])
       setStats(data.stats)
@@ -385,6 +394,10 @@ function ReviewsSection({ productId }: { productId: string }) {
 
     setSubmitting(true)
     try {
+      const photos = newReview.photos.trim() 
+        ? newReview.photos.split(',').map(p => p.trim()).filter(p => p.length > 0)
+        : []
+      
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -393,13 +406,14 @@ function ReviewsSection({ productId }: { productId: string }) {
           rating: newReview.rating,
           title: newReview.title || null,
           content: newReview.content || null,
+          photos,
         }),
       })
 
       if (res.ok) {
         toast.success('Review submitted successfully!')
         setShowForm(false)
-        setNewReview({ rating: 5, title: '', content: '' })
+        setNewReview({ rating: 5, title: '', content: '', photos: '' })
         fetchReviews()
       } else {
         const data = await res.json()
@@ -467,6 +481,17 @@ function ReviewsSection({ productId }: { productId: string }) {
                 placeholder="Share your experience with this product"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Photo URLs (optional)</label>
+              <input
+                type="text"
+                value={newReview.photos}
+                onChange={(e) => setNewReview({ ...newReview, photos: e.target.value })}
+                className="input-field"
+                placeholder="Enter image URLs separated by commas"
+              />
+              <p className="text-xs text-slate-500 mt-1">Paste URLs to images you want to share</p>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={handleSubmitReview}
@@ -528,7 +553,7 @@ function ReviewsSection({ productId }: { productId: string }) {
         </div>
       )}
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
         <span className="text-sm text-slate-600">Sort by:</span>
         <select
           value={sort}
@@ -541,6 +566,34 @@ function ReviewsSection({ productId }: { productId: string }) {
           <option value="lowest">Lowest Rating</option>
           <option value="helpful">Most Helpful</option>
         </select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-600">Filter:</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setRatingFilter(null)}
+              className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                ratingFilter === null 
+                  ? 'bg-sky-600 text-white' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              All
+            </button>
+            {[5, 4, 3, 2, 1].map((star) => (
+              <button
+                key={star}
+                onClick={() => setRatingFilter(ratingFilter === star ? null : star)}
+                className={`px-3 py-1 text-sm rounded-full transition-colors flex items-center gap-1 ${
+                  ratingFilter === star 
+                    ? 'bg-sky-600 text-white' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {star} <span className="text-yellow-400">★</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -582,6 +635,23 @@ function ReviewsSection({ productId }: { productId: string }) {
                 <p className="text-slate-600 mb-4">{review.content}</p>
               )}
 
+              {review.photos && review.photos.length > 0 && (
+                <div className="flex gap-2 mb-4">
+                  {review.photos.map((photo, index) => (
+                    <div key={index} className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 relative">
+                      <img 
+                        src={photo} 
+                        alt={`Review photo ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => handleMarkHelpful(review.id)}
@@ -603,6 +673,230 @@ function ReviewsSection({ productId }: { productId: string }) {
           </svg>
           <h3 className="text-lg font-semibold text-slate-900 mb-2">No reviews yet</h3>
           <p className="text-slate-500">Be the first to review this product!</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface ProductQuestion {
+  id: string
+  question: string
+  answer: string | null
+  createdAt: string
+  user: { id: string; name: string }
+}
+
+function QASection({ productId }: { productId: string }) {
+  const { user } = useApp()
+  const [questions, setQuestions] = useState<ProductQuestion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [newQuestion, setNewQuestion] = useState('')
+  const [answeringId, setAnsweringId] = useState<string | null>(null)
+  const [answerText, setAnswerText] = useState('')
+
+  useEffect(() => {
+    fetchQuestions()
+  }, [productId])
+
+  const fetchQuestions = async () => {
+    try {
+      const res = await fetch(`/api/questions?productId=${productId}`)
+      const data = await res.json()
+      setQuestions(data.questions || [])
+    } catch {
+      console.error('Failed to fetch questions')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmitQuestion = async () => {
+    if (!user) {
+      toast.error('Please login to ask a question')
+      return
+    }
+    if (!newQuestion.trim()) {
+      toast.error('Please enter a question')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, question: newQuestion }),
+      })
+
+      if (res.ok) {
+        toast.success('Question submitted!')
+        setShowForm(false)
+        setNewQuestion('')
+        fetchQuestions()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to submit question')
+      }
+    } catch {
+      toast.error('Failed to submit question')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleSubmitAnswer = async (questionId: string) => {
+    if (!user) {
+      toast.error('Please login to answer')
+      return
+    }
+    if (!answerText.trim()) {
+      toast.error('Please enter an answer')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/questions/${questionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answer: answerText }),
+      })
+
+      if (res.ok) {
+        toast.success('Answer submitted!')
+        setAnsweringId(null)
+        setAnswerText('')
+        fetchQuestions()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to submit answer')
+      }
+    } catch {
+      toast.error('Failed to submit answer')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="mt-16">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Questions & Answers</h2>
+        {user && (
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+            Ask a Question
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="card p-6 mb-8">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Ask a Question</h3>
+          <div className="space-y-4">
+            <textarea
+              value={newQuestion}
+              onChange={(e) => setNewQuestion(e.target.value)}
+              className="input-field"
+              rows={3}
+              placeholder="What would you like to know about this product?"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmitQuestion}
+                disabled={submitting}
+                className="btn-primary"
+              >
+                {submitting ? 'Submitting...' : 'Submit Question'}
+              </button>
+              <button onClick={() => setShowForm(false)} className="btn-secondary">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="card p-6 animate-pulse">
+              <div className="h-4 bg-slate-200 rounded w-3/4 mb-2" />
+              <div className="h-4 bg-slate-200 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : questions.length > 0 ? (
+        <div className="space-y-6">
+          {questions.map((q) => (
+            <div key={q.id} className="card p-6">
+              <div className="flex items-start gap-3 mb-3">
+                <svg className="w-5 h-5 text-sky-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-medium text-slate-900">{q.question}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Asked by {q.user.name} on {new Date(q.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              {q.answer && (
+                <div className="ml-8 pl-3 border-l-2 border-slate-200">
+                  <p className="text-slate-700">{q.answer}</p>
+                </div>
+              )}
+
+              {!q.answer && user && user.role === 'ADMIN' && answeringId !== q.id && (
+                <div className="ml-8 mt-2">
+                  <button
+                    onClick={() => setAnsweringId(q.id)}
+                    className="text-sm text-sky-600 hover:text-sky-700"
+                  >
+                    Answer this question
+                  </button>
+                </div>
+              )}
+
+              {answeringId === q.id && (
+                <div className="ml-8 mt-3 space-y-3">
+                  <textarea
+                    value={answerText}
+                    onChange={(e) => setAnswerText(e.target.value)}
+                    className="input-field"
+                    rows={2}
+                    placeholder="Write your answer..."
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSubmitAnswer(q.id)}
+                      disabled={submitting}
+                      className="btn-primary text-sm py-2"
+                    >
+                      {submitting ? 'Submitting...' : 'Submit Answer'}
+                    </button>
+                    <button
+                      onClick={() => { setAnsweringId(null); setAnswerText('') }}
+                      className="btn-secondary text-sm py-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card p-12 text-center">
+          <svg className="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No questions yet</h3>
+          <p className="text-slate-500">Be the first to ask a question about this product!</p>
         </div>
       )}
     </div>
@@ -652,8 +946,8 @@ export default function ProductDetailPage() {
   const router = useRouter()
   const { setCart, addToWishlist, removeFromWishlist, isInWishlist, addToRecentlyViewed, user } = useApp()
   const [product, setProduct] = useState<Product | null>(null)
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
-  const [alsoBought, setAlsoBought] = useState<Product[]>([])
+  const [youMayAlsoLike, setYouMayAlsoLike] = useState<Product[]>([])
+  const [frequentlyBoughtTogether, setFrequentlyBoughtTogether] = useState<Product[]>([])
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
@@ -697,12 +991,12 @@ export default function ProductDetailPage() {
         
         const relatedRes = await fetch(`/api/products?category=${data.category}&limit=4`)
         const relatedData = await relatedRes.json()
-        setRelatedProducts((relatedData.products || []).filter((p: Product) => p.id !== data.id).slice(0, 4))
+        setYouMayAlsoLike((relatedData.products || []).filter((p: Product) => p.id !== data.id).slice(0, 4))
 
         const recommendationsRes = await fetch(`/api/products/${params.id}/recommendations?limit=4`)
         if (recommendationsRes.ok) {
           const recommendations = await recommendationsRes.json()
-          setAlsoBought(recommendations.alsoBought || [])
+          setFrequentlyBoughtTogether(recommendations.frequentlyBoughtTogether || [])
         }
       } else {
         router.push('/products')
@@ -965,23 +1259,25 @@ export default function ProductDetailPage() {
 
         <ReviewsSection productId={product.id} />
 
-        {alsoBought.length > 0 && (
+        <QASection productId={product.id} />
+
+        {frequentlyBoughtTogether.length > 0 && (
           <div className="mt-16">
-            <h2 className="text-2xl font-bold text-slate-900 mb-8">Customers Also Bought</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-8">Frequently Bought Together</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {alsoBought.map((product) => (
-                <ProductCard key={product.id} product={product} priority={alsoBought.indexOf(product) < 2} />
+              {frequentlyBoughtTogether.map((product) => (
+                <ProductCard key={product.id} product={product} priority={frequentlyBoughtTogether.indexOf(product) < 2} />
               ))}
             </div>
           </div>
         )}
 
-        {relatedProducts.length > 0 && (
+        {youMayAlsoLike.length > 0 && (
           <div className="mt-16">
-            <h2 className="text-2xl font-bold text-slate-900 mb-8">Related Products</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-8">You May Also Like</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct) => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} priority={relatedProducts.indexOf(relatedProduct) < 2} />
+              {youMayAlsoLike.map((relatedProduct) => (
+                <ProductCard key={relatedProduct.id} product={relatedProduct} priority={youMayAlsoLike.indexOf(relatedProduct) < 2} />
               ))}
             </div>
           </div>

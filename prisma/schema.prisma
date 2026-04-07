@@ -18,6 +18,7 @@ model User {
   wishlistItems  WishlistItem[]
   reviews        Review[]
   notifications Notification[]
+  questions      ProductQuestion[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -46,6 +47,7 @@ model Review {
   rating     Int      // 1-5 stars
   title      String?
   content    String?
+  photos     String[] // Array of photo URLs
   helpful    Int      @default(0) // Helpful votes count
   verified   Boolean  @default(false) // Verified purchase
   createdAt  DateTime @default(now())
@@ -57,7 +59,23 @@ model Review {
   @@index([createdAt])
 }
 
-// Notifications
+// Product Q&A
+model ProductQuestion {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    String
+  answer      String?  // Answer from admin or other user
+  answeredBy  String?  // User ID who answered (typically admin)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
+}
 model Notification {
   id        String           @id @default(uuid())
   userId    String
@@ -108,11 +126,11 @@ model Product {
   categoryRef ProductCollection? @relation(fields: [categoryId], references: [id])
   image       String?
   stock       Int            @default(0)
-  specifications Json?      // Product specifications as key-value pairs
+  specifications Json?
   orderItems  OrderItem[]
   reviews     Review[]
   wishlistItems WishlistItem[]
-  // Aggregate rating fields for fast querying
+  questions   ProductQuestion[]
   averageRating Float        @default(0)
   reviewCount   Int          @default(0)
   createdAt    DateTime      @default(now())

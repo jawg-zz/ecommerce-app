@@ -109,6 +109,9 @@ function OrdersContent() {
         
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">My Orders</h1>
+          <Link href="/order-tracking" className="btn-secondary text-sm">
+            Track Order
+          </Link>
           <div className="flex gap-2 flex-wrap">
             <Link
               href="/orders"

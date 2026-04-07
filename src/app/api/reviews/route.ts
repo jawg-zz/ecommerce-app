@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1')
   const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50)
   const sort = searchParams.get('sort') || 'newest' // newest, oldest, highest, lowest, helpful
+  const rating = searchParams.get('rating')
 
   if (!productId) {
     return NextResponse.json(
@@ -32,7 +33,10 @@ export async function GET(request: NextRequest) {
       break
   }
 
-  const where = { productId }
+  const where: Record<string, unknown> = { productId }
+  if (rating) {
+    where.rating = parseInt(rating)
+  }
 
   try {
     const [reviews, total, stats] = await Promise.all([
@@ -99,7 +103,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { productId, rating, title, content } = body
+    const { productId, rating, title, content, photos } = body
 
     if (!productId || !rating) {
       return NextResponse.json(
@@ -151,6 +155,7 @@ export async function POST(request: NextRequest) {
         rating,
         title: title?.trim() || null,
         content: content?.trim() || null,
+        photos: photos || [],
         verified: !!hasPurchased,
       },
       include: {

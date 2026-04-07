@@ -14,32 +14,9 @@ import {
 import { KENYA_COUNTIES, ShippingAddress } from '@/types'
 import toast from 'react-hot-toast'
 
-function Breadcrumbs() {
-  return (
-    <nav className="flex items-center gap-2 text-sm mb-6" aria-label="Breadcrumb">
-      <Link 
-        href="/" 
-        className="text-slate-500 hover:text-sky-600 transition-colors flex items-center gap-1"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-        Home
-      </Link>
-      <span className="text-slate-300">/</span>
-      <Link 
-        href="/cart" 
-        className="text-slate-500 hover:text-sky-600 transition-colors"
-      >
-        Cart
-      </Link>
-      <span className="text-slate-300">/</span>
-      <span className="text-slate-900 font-medium">Checkout</span>
-    </nav>
-  )
-}
 
-type CheckoutStep = 'information' | 'payment' | 'confirmation'
+
+
 
 interface FormErrors {
   email?: string
@@ -84,109 +61,59 @@ function getEstimatedDelivery(): string {
   })
 }
 
-function CheckoutSteps({ currentStep }: { currentStep: CheckoutStep }) {
-  const steps: { key: CheckoutStep; label: string; icon: React.ReactElement }[] = [
-    { 
-      key: 'information', 
-      label: 'Information',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      )
-    },
-    { 
-      key: 'payment', 
-      label: 'Payment',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-        </svg>
-      )
-    },
-    { 
-      key: 'confirmation', 
-      label: 'Confirmation',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      )
-    },
-  ]
-
-  const getStepStatus = (stepKey: CheckoutStep) => {
-    const stepIndex = steps.findIndex(s => s.key === stepKey)
-    const currentIndex = steps.findIndex(s => s.key === currentStep)
-    if (stepIndex < currentIndex) return 'completed'
-    if (stepIndex === currentIndex) return 'current'
-    return 'pending'
-  }
-
+// Accordion Section Component
+function AccordionSection({
+  title,
+  icon,
+  children,
+  isOpen,
+  onToggle,
+  completed = false,
+}: {
+  title: string
+  icon: React.ReactNode
+  children: React.ReactNode
+  isOpen: boolean
+  onToggle: () => void
+  completed?: boolean
+}) {
   return (
-    <nav aria-label="Checkout progress" className="mb-8">
-      <div className="flex items-center justify-center max-w-lg mx-auto">
-        {steps.map((step, index) => {
-          const status = getStepStatus(step.key)
-          const isLast = index === steps.length - 1
-          
-          return (
-            <div key={step.key} className="flex items-center flex-1">
-              <div className="flex flex-col items-center relative">
-                <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-semibold transition-all duration-300 shadow-md ${
-                    status === 'completed'
-                      ? 'bg-gradient-to-br from-green-400 to-green-500 text-white scale-100'
-                      : status === 'current'
-                      ? 'bg-gradient-to-br from-sky-400 to-sky-500 text-white scale-110 shadow-lg'
-                      : 'bg-slate-100 text-slate-400'
-                  }`}
-                  aria-current={status === 'current' ? 'step' : undefined}
-                >
-                  {status === 'completed' ? (
-                    <svg className="w-6 h-6 animate-checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : status === 'current' ? (
-                    <div className="relative">
-                      <span className="sr-only">Current step: </span>
-                      {step.icon}
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full">
-                        <span className="absolute inset-0 rounded-full bg-sky-400 animate-ping opacity-75"></span>
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="sr-only">Step: </span>
-                  )}
-                </div>
-                <span className={`absolute -bottom-6 text-xs font-medium whitespace-nowrap ${
-                  status === 'current' 
-                    ? 'text-sky-600' 
-                    : status === 'completed'
-                      ? 'text-green-600'
-                      : 'text-slate-400'
-                }`}>
-                  {step.label}
-                </span>
-              </div>
-              
-              {!isLast && (
-                <div className="flex-1 h-0.5 mx-3 relative overflow-hidden rounded-full">
-                  <div
-                    className={`absolute inset-y-0 left-0 transition-all duration-500 ${
-                      getStepStatus(steps[index + 1].key) === 'completed' ||
-                      getStepStatus(steps[index + 1].key) === 'current'
-                        ? 'w-full bg-gradient-to-r from-green-400 to-green-500'
-                        : 'w-0 bg-slate-200'
-                    }`}
-                  />
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </nav>
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            completed ? 'bg-green-100 text-green-600' : isOpen ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'
+          }`}>
+            {completed ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              icon
+            )}
+          </div>
+          <span className={`font-medium ${isOpen ? 'text-slate-900' : 'text-slate-600'}`}>{title}</span>
+        </div>
+        <svg 
+          className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor" 
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-slate-100">
+          {children}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -222,11 +149,17 @@ function CheckoutPageContent() {
   const [guestEmail, setGuestEmail] = useState('')
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
-  const [currentStep, setCurrentStep] = useState<CheckoutStep>('information')
   const [phone, setPhone] = useState('')
   const [phoneValid, setPhoneValid] = useState(false)
   const [checkoutRequestId, setCheckoutRequestId] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+
+  // Accordion state for one-page checkout
+  const [openSection, setOpenSection] = useState<'shipping' | 'payment' | 'summary'>('shipping')
+  const [sectionsCompleted, setSectionsCompleted] = useState({
+    shipping: false,
+    payment: false,
+  })
 
   const [phoneError, setPhoneError] = useState('')
   const [formErrors, setFormErrors] = useState<FormErrors>({})
@@ -289,20 +222,19 @@ function CheckoutPageContent() {
     fetchSavedAddresses()
   }, [user])
 
-  // Cleanup payment state when leaving payment stage
+  // Cleanup payment state when not in payment mode
   useEffect(() => {
-    if (currentStep !== 'payment' && currentStep !== 'confirmation') {
-      setPaymentStage('sending')
-      setCheckoutRequestId('')
-      setStatusMessage('')
-      setError('')
-      setOrderId(undefined)
-    }
-  }, [currentStep])
+    if (paymentStage === 'waiting') return
+    
+    setPaymentStage('sending')
+    setCheckoutRequestId('')
+    setStatusMessage('')
+    setError('')
+    setOrderId(undefined)
+  }, [openSection])
 
-  // Poll for payment status
   useEffect(() => {
-    if (currentStep !== 'payment' || !orderId) return
+    if (openSection !== 'payment' || paymentStage !== 'waiting' || !orderId) return
     
     let pollCount = 0
     const maxPolls = 60
@@ -355,7 +287,7 @@ function CheckoutPageContent() {
     }, 1000)
     
     return () => clearInterval(pollInterval)
-  }, [currentStep, orderId, router])
+  }, [openSection, orderId, router, paymentStage])
 
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
@@ -375,7 +307,7 @@ function CheckoutPageContent() {
   }, [cart.items, setCart])
 
   useEffect(() => {
-    if (currentStep !== 'payment' || paymentStage !== 'waiting') {
+    if (openSection !== 'payment' || paymentStage !== 'waiting') {
       setTimeRemaining(600)
       return
     }
@@ -385,13 +317,13 @@ function CheckoutPageContent() {
     }, 1000)
     
     return () => clearInterval(interval)
-  }, [currentStep, paymentStage])
+  }, [openSection, paymentStage])
 
   useEffect(() => {
-    if (cart.items.length === 0 && currentStep !== 'confirmation') {
+    if (cart.items.length === 0) {
       router.push('/cart')
     }
-  }, [cart.items.length, currentStep, router])
+  }, [cart.items.length, router])
 
   const handleUseSavedAddress = (saved: SavedAddress) => {
     setShippingAddress(saved.address)
@@ -504,7 +436,7 @@ function CheckoutPageContent() {
       }
     }
     
-    setCurrentStep('information')
+    setOpenSection('shipping')
     setError('')
     setProcessing(false)
     refreshCart()
@@ -525,8 +457,7 @@ function CheckoutPageContent() {
 
     // Move to payment screen first
     setPaymentPhone(phoneNumber)
-    console.log('[Checkout] Moving to payment step')
-    setCurrentStep('payment')
+    setOpenSection('payment')
 
     try {
       const res = await fetch('/api/checkout', {
@@ -610,7 +541,7 @@ function CheckoutPageContent() {
 
   const handlePaymentTimeout = async (orderId: string) => {
     setError('Payment timed out. Please try again.')
-    setCurrentStep('information')
+    setOpenSection('shipping')
     
     try {
       await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
@@ -641,187 +572,10 @@ function CheckoutPageContent() {
     }
   }
 
-  if (currentStep === 'payment') {
-    return (
-      <div className="py-8">
-        <div className="container-custom">
-          <CheckoutSteps currentStep={currentStep} />
-          
-          <div className="max-w-lg mx-auto">
-
-            <div className="card p-8 text-center">
-              <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <div className={`w-24 h-24 bg-green-100 rounded-full flex items-center justify-center ${paymentStage === 'waiting' ? 'animate-pulse' : ''}`}>
-                    <svg className="w-12 h-12 text-green-600" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                    </svg>
-                  </div>
-                  {(paymentStage === 'waiting') && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                      <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <h2 className="text-2xl font-bold mb-2">Check Your Phone</h2>
-              <p className="text-slate-600 mb-6">{getStatusMessage()}</p>
-              
-              <div aria-live="polite" aria-atomic="true" className="sr-only">
-                {getStatusMessage()}
-              </div>
-              {error && (
-                <div aria-live="assertive" className="sr-only">
-                  Payment failed: {error}
-                </div>
-              )}
-              
-              {paymentPhone && (
-                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6">
-                  <p className="text-sm text-green-700 mb-1">Payment request sent to:</p>
-                  <p className="text-2xl font-bold text-green-800">{formatPhoneForDisplay(paymentPhone)}</p>
-                </div>
-              )}
-
-              <div className="bg-slate-100 rounded-xl p-5 mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="text-left">
-                    <p className="text-sm text-slate-500">Amount</p>
-                    <p className="text-2xl font-bold text-slate-700">KES {formatPrice(total).replace('KES', '').trim()}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-slate-500 text-center mt-4">This usually takes 30 seconds. Check your phone for the M-Pesa prompt.</p>
-              </div>
-
-              <div className="bg-blue-50 rounded-xl p-5 mb-6 text-left">
-                <p className="font-semibold text-blue-800 mb-4 text-lg">How to pay:</p>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">1</div>
-                    <div>
-                      <p className="font-medium text-blue-800">Check your phone</p>
-                      <p className="text-sm text-blue-600">Look for the M-Pesa payment prompt</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">2</div>
-                    <div>
-                      <p className="font-medium text-blue-800">Enter your PIN</p>
-                      <p className="text-sm text-blue-600">Type your M-Pesa PIN to confirm</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">3</div>
-                    <div>
-                      <p className="font-medium text-blue-800">Wait for confirmation</p>
-                      <p className="text-sm text-blue-600">We'll update automatically when done</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {(paymentStage === 'waiting') && (
-                <div className="flex items-center justify-center gap-2 mb-6 text-slate-500">
-                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                  <span className="text-sm">Waiting for payment...</span>
-                </div>
-              )}
-
-              {error && (
-                <div className="bg-red-50 border-2 border-red-500 text-red-700 p-4 rounded-xl mb-6 text-left">
-                  <div className="flex items-start gap-3">
-                    <svg className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="font-semibold mb-1">Payment Failed</p>
-                      <p className="text-sm">{error}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!error && paymentStage !== 'waiting' && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
-                  <p className="font-medium text-yellow-800 mb-2">Didn't receive the prompt?</p>
-                  <ul className="text-sm text-yellow-700 space-y-1 mb-3">
-                    <li>• Make sure your phone is on and has signal</li>
-                    <li>• Check your M-Pesa balance</li>
-                    <li>• You may have insufficient funds</li>
-                  </ul>
-                  <button
-                    onClick={handleRetry}
-                    disabled={processing}
-                    className="w-full py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processing ? 'Retrying...' : 'Try Again'}
-                  </button>
-                </div>
-              )}
-
-              {error && (
-                <div className="flex gap-3 mb-6">
-                  <button
-                    onClick={handleRetry}
-                    disabled={processing}
-                    className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processing ? 'Retrying...' : 'Try Again'}
-                  </button>
-                  <button
-                    onClick={cancelPayment}
-                    disabled={processing}
-                    className="flex-1 py-3 border-2 border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Go Back
-                  </button>
-                </div>
-              )}
-
-              {!error && (
-                <button
-                  onClick={cancelPayment}
-                  disabled={processing}
-                  className="w-full py-3 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel Payment
-                </button>
-              )}
-
-              {timeRemaining < 120 && timeRemaining > 0 && (
-                <p className="text-sm text-orange-600 mt-4 text-center">
-                  Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
-                </p>
-              )}
-
-              <div className="mt-6 pt-4 border-t border-slate-200">
-                <p className="text-xs text-slate-500">
-                  Order: {retryDataRef.current?.orderId?.slice(0, 8).toUpperCase() || 'N/A'}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Reference: {checkoutRequestId?.slice(0, 8).toUpperCase() || 'N/A'}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Need help? Contact support with the reference above
-                </p>
-              </div>
-
-              <SecurityBadges />
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   if (cart.items.length === 0) {
     return (
       <div className="py-8">
         <div className="container-custom text-center">
-          <Breadcrumbs />
           <h1 className="text-2xl font-bold mb-4">Checkout</h1>
           <p className="text-slate-500 mb-6">Your cart is empty.</p>
           <Link href="/products" className="btn-primary">
@@ -835,8 +589,7 @@ function CheckoutPageContent() {
   return (
     <div className="py-8">
       <div className="container-custom">
-        <Breadcrumbs />
-        <CheckoutSteps currentStep={currentStep} />
+        <h1 className="text-2xl font-bold mb-6">Checkout</h1>
         
         {cartWarning && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center justify-between">
@@ -1192,6 +945,62 @@ function CheckoutPageContent() {
                 </div>
               </div>
             </form>
+
+            {openSection === 'payment' && paymentStage === 'waiting' && (
+              <div className="mt-6 bg-green-50 border-2 border-green-200 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center animate-pulse">
+                    <svg className="w-6 h-6 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-green-800">Waiting for M-Pesa Payment</p>
+                    <p className="text-sm text-green-600">Check your phone for the payment prompt</p>
+                  </div>
+                </div>
+                
+                {paymentPhone && (
+                  <div className="bg-white rounded-lg p-3 mb-4">
+                    <p className="text-xs text-slate-500">Payment sent to</p>
+                    <p className="font-medium text-slate-800">{formatPhoneForDisplay(paymentPhone)}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-sm mb-4">
+                  <span className="text-slate-600">Amount</span>
+                  <span className="font-bold text-slate-800">{formatPrice(total)}</span>
+                </div>
+
+                {timeRemaining < 120 && timeRemaining > 0 && (
+                  <p className="text-sm text-orange-600 mb-4">
+                    Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                  </p>
+                )}
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleRetry}
+                    disabled={processing}
+                    className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {processing ? 'Sending...' : 'Resend Request'}
+                  </button>
+                  <button
+                    onClick={cancelPayment}
+                    className="flex-1 py-2 border border-slate-300 text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             <SecurityBadges />
           </div>

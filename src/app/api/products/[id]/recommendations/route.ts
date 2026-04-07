@@ -88,16 +88,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }),
     ])
 
-    const related = sameCategory.slice(0, limit)
-    const alsoBought = priceRange
+    // "You May Also Like" - products in the same category
+    const youMayAlsoLike = sameCategory.slice(0, limit)
+    
+    // "Frequently Bought Together" - products in similar price range, sorted by popularity
+    const frequentlyBoughtTogether = priceRange
       .sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0))
       .slice(0, limit)
-    const recommended = topRated.slice(0, limit)
+    
+    // "Recommended For You" - top rated products (fallback)
+    const recommendedForYou = topRated.slice(0, limit)
 
     return NextResponse.json({
-      related,
-      alsoBought,
-      recommended,
+      youMayAlsoLike,
+      frequentlyBoughtTogether,
+      recommendedForYou,
     })
   } catch (error) {
     console.error('Failed to fetch recommendations:', error)
