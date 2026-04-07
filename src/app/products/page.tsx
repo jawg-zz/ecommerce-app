@@ -447,13 +447,73 @@ function ProductsContent() {
                 )}
               </>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-slate-500 text-lg">No products found.</p>
-                {activeFilters.length > 0 && (
-                  <button onClick={clearFilters} className="mt-4 text-sky-600 hover:text-sky-700 font-medium">
-                    Clear filters
-                  </button>
-                )}
+              <div className="py-16">
+                <div className="max-w-lg mx-auto text-center">
+                  <div className="relative mb-8">
+                    <div className="w-32 h-32 mx-auto bg-slate-100 rounded-full flex items-center justify-center">
+                      <svg 
+                        className="w-16 h-16 text-slate-300" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor" 
+                        strokeWidth={1.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                    </div>
+                    <div className="absolute -bottom-2 -right-4 w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center">
+                      <span className="text-2xl">🔍</span>
+                    </div>
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold text-slate-900 mb-3">
+                    No products found
+                  </h2>
+                  <p className="text-slate-500 mb-8 max-w-sm mx-auto">
+                    {search 
+                      ? `We couldn't find any products matching "${search}". Try adjusting your search or filters.`
+                      : 'No products match your current filters. Try adjusting your criteria to find what you\'re looking for.'
+                    }
+                  </p>
+                  
+                  {activeFilters.length > 0 && (
+                    <button 
+                      onClick={clearFilters} 
+                      className="btn-primary py-3 px-8"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                  
+                  {search && (
+                    <div className="mt-6">
+                      <button 
+                        onClick={clearSearch} 
+                        className="text-sky-600 hover:text-sky-700 font-medium"
+                      >
+                        Clear search
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="mt-12 pt-8 border-t border-slate-100">
+                    <p className="text-sm text-slate-500 mb-4">Browse by category</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {['Electronics', 'Clothing', 'Books'].map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            clearFilters()
+                            handleCategoryChange(cat)
+                          }}
+                          className="px-4 py-2 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-full text-sm text-slate-600 transition-colors"
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </main>

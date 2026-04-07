@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -659,6 +659,24 @@ export default function ProductDetailPage() {
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
   const [wishlistAnimating, setWishlistAnimating] = useState(false)
+  const [showStickyBar, setShowStickyBar] = useState(false)
+  const mainCtaRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!mainCtaRef.current) return
+      
+      const ctaRect = mainCtaRef.current.getBoundingClientRect()
+      const isPastCta = ctaRect.bottom < 0
+      
+      setShowStickyBar(isPastCta)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const inWishlist = product ? isInWishlist(product.id) : false
 
@@ -862,6 +880,7 @@ export default function ProductDetailPage() {
               </div>
 
               <button
+                ref={mainCtaRef}
                 onClick={handleAddToCart}
                 disabled={product.stock === 0 || adding || added}
                 className={`w-full py-4 text-lg font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 ${
@@ -969,6 +988,39 @@ export default function ProductDetailPage() {
         )}
 
         <RecentlyViewedHorizontal />
+
+        {showStickyBar && product.stock > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
+            <div className="bg-white border-t border-slate-200 shadow-lg px-4 py-3 flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">{product.name}</p>
+                <p className="text-lg font-bold text-sky-600">{formatPrice(product.price)}</p>
+              </div>
+              <button
+                onClick={handleAddToCart}
+                disabled={adding || added}
+                className={`shrink-0 px-6 py-3 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 ${
+                  added
+                    ? 'bg-green-500 text-white'
+                    : 'bg-sky-600 text-white hover:bg-sky-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {adding ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : added ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                )}
+                {added ? 'Added!' : 'Add'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

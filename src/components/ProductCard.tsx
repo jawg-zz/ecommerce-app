@@ -211,8 +211,8 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           )}
 
           {product.stock > 0 && product.stock <= 5 && (
-            <span className="absolute top-3 right-3 bg-orange-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg animate-pulse">
-              {product.stock} left
+            <span className="absolute top-10 right-3 bg-red-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg animate-pulse">
+              Only {product.stock} left!
             </span>
           )}
 

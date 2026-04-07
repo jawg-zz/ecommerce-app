@@ -14,6 +14,31 @@ import {
 import { KENYA_COUNTIES, ShippingAddress } from '@/types'
 import toast from 'react-hot-toast'
 
+function Breadcrumbs() {
+  return (
+    <nav className="flex items-center gap-2 text-sm mb-6" aria-label="Breadcrumb">
+      <Link 
+        href="/" 
+        className="text-slate-500 hover:text-sky-600 transition-colors flex items-center gap-1"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        Home
+      </Link>
+      <span className="text-slate-300">/</span>
+      <Link 
+        href="/cart" 
+        className="text-slate-500 hover:text-sky-600 transition-colors"
+      >
+        Cart
+      </Link>
+      <span className="text-slate-300">/</span>
+      <span className="text-slate-900 font-medium">Checkout</span>
+    </nav>
+  )
+}
+
 type CheckoutStep = 'information' | 'payment' | 'confirmation'
 
 interface FormErrors {
@@ -796,6 +821,7 @@ function CheckoutPageContent() {
     return (
       <div className="py-8">
         <div className="container-custom text-center">
+          <Breadcrumbs />
           <h1 className="text-2xl font-bold mb-4">Checkout</h1>
           <p className="text-slate-500 mb-6">Your cart is empty.</p>
           <Link href="/products" className="btn-primary">
@@ -809,6 +835,7 @@ function CheckoutPageContent() {
   return (
     <div className="py-8">
       <div className="container-custom">
+        <Breadcrumbs />
         <CheckoutSteps currentStep={currentStep} />
         
         {cartWarning && (

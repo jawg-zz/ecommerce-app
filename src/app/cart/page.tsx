@@ -9,6 +9,24 @@ import { formatPrice } from '@/lib/utils'
 import { isNetworkError } from '@/lib/validation'
 import toast from 'react-hot-toast'
 
+function Breadcrumbs() {
+  return (
+    <nav className="flex items-center gap-2 text-sm mb-6" aria-label="Breadcrumb">
+      <Link 
+        href="/" 
+        className="text-slate-500 hover:text-sky-600 transition-colors flex items-center gap-1"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        Home
+      </Link>
+      <span className="text-slate-300">/</span>
+      <span className="text-slate-900 font-medium">Cart</span>
+    </nav>
+  )
+}
+
 function QuantitySelector({
   quantity,
   stock,
@@ -200,6 +218,7 @@ export default function CartPage() {
     return (
       <div className="py-8">
         <div className="container-custom">
+          <Breadcrumbs />
           <div className="max-w-md mx-auto text-center">
             <div className="w-20 h-20 mx-auto mb-6 bg-slate-100 rounded-full flex items-center justify-center">
               <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -218,7 +237,12 @@ export default function CartPage() {
   }
 
   if (cart.items.length === 0) {
-    return <EmptyCart isLoggedIn={!!user} />
+    return (
+      <>
+        <Breadcrumbs />
+        <EmptyCart isLoggedIn={!!user} />
+      </>
+    )
   }
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -226,6 +250,7 @@ export default function CartPage() {
   return (
     <div className="py-8">
       <div className="container-custom">
+        <Breadcrumbs />
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Shopping Cart</h1>
