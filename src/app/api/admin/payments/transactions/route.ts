@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrderStatus } from '@prisma/client'
+import type { ShippingAddress } from '@/lib/types'
 
 const orderStatuses: OrderStatus[] = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']
 
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
     amount: order.total,
     status: order.status,
     mpesaReceipt: order.mpesaCheckoutRequestId || order.mpesaMerchantRequestId || null,
-    phone: (order.shippingAddress as any)?.phone || null,
+    phone: (order.shippingAddress as unknown as ShippingAddress)?.phone || null,
     cancelReason: order.cancelReason,
     paymentMethod: order.stripePaymentId ? 'STRIPE' : 'M-PESA',
     createdAt: order.createdAt.toISOString(),

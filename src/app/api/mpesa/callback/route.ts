@@ -5,6 +5,9 @@ import { logInfo, logError } from '@/lib/logger'
 import { logCallbackError } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
 import { cancelPaymentCheck } from '@/lib/queue'
+import type { RedisLockOperations } from '@/lib/types'
+
+const redisLock = redis as unknown as RedisLockOperations
 
 const SAFARICOM_IPS = new Set([
   '196.201.214.200',
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
     }
 
-    const lock = await (redis as any).set(`lock:payment:${order.id}`, '1', 'NX', 'EX', 30)
+    const lock = await redisLock.set(`lock:payment:${order.id}`, '1', 'NX', 'EX', 30)
     if (!lock) {
       logInfo('Payment already being processed', { orderId: order.id, CheckoutRequestID })
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })

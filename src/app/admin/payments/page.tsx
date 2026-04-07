@@ -29,6 +29,7 @@ import {
   Legend,
 } from 'recharts'
 import { toast } from 'react-hot-toast'
+import type { ShippingAddress } from '@/lib/types'
 
 interface Stats {
   totalRevenue: number
@@ -68,7 +69,7 @@ interface Transaction {
   mpesaCheckoutRequestId?: string
   mpesaMerchantRequestId?: string
   stripePaymentId?: string
-  shippingAddress?: Record<string, unknown>
+  shippingAddress?: ShippingAddress
   items?: Array<{
     id: string
     productId: string
@@ -628,10 +629,10 @@ function PaymentsContent() {
                   <div className="col-span-2">
                     <p className="text-sm text-slate-500">Shipping Address</p>
                     <div className="text-sm text-slate-900 mt-1">
-                      <p>{(selectedTransaction.shippingAddress as any)?.name}</p>
-                      <p>{(selectedTransaction.shippingAddress as any)?.address}</p>
-                      <p>{(selectedTransaction.shippingAddress as any)?.city}, {(selectedTransaction.shippingAddress as any)?.state} {(selectedTransaction.shippingAddress as any)?.zipCode}</p>
-                      <p>Phone: {(selectedTransaction.shippingAddress as any)?.phone || '-'}</p>
+                      <p>{selectedTransaction.shippingAddress.name}</p>
+                      <p>{selectedTransaction.shippingAddress.address}</p>
+                      <p>{selectedTransaction.shippingAddress.city}, {selectedTransaction.shippingAddress.state} {selectedTransaction.shippingAddress.zipCode}</p>
+                      <p>Phone: {selectedTransaction.shippingAddress.phone || '-'}</p>
                     </div>
                   </div>
                 )}

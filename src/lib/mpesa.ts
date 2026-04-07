@@ -1,11 +1,7 @@
-/**
- * M-Pesa Daraja API Integration
- * Docs: https://developer.safaricom.co.ke/Documentation
- */
-
 import { env, getValidatedEnv } from './env'
 import { redis } from './redis'
 import { logInfo, logError } from './logger'
+import { MPESA_FETCH_TIMEOUT_MS } from './constants'
 
 interface AccessTokenResponse {
   access_token: string
@@ -104,7 +100,7 @@ async function fetchWithRetry<T>(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const timeoutId = setTimeout(() => controller.abort(), MPESA_FETCH_TIMEOUT_MS)
 
       const response = await fetch(url, {
         ...options,

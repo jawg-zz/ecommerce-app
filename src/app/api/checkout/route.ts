@@ -8,6 +8,7 @@ import { logError } from '@/lib/logger'
 import { logCheckoutError, logPaymentError } from '@/lib/errors'
 import { checkoutRateLimiter } from '@/lib/ratelimit'
 import { schedulePaymentCheck } from '@/lib/queue'
+import { PAYMENT_CHECK_DELAY_MS, PAYMENT_TIMEOUT_MS, RECENT_ORDER_THRESHOLD_MS } from '@/lib/constants'
 
 const checkoutSchema = z.object({
   phoneNumber: z.string().regex(/^(254[17]\d{8}|0[17]\d{8})$/, 'Invalid phone number format (use 0712345678 or 254712345678)'),
@@ -75,7 +76,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing pending order for this user within a reasonable timeframe (5 minutes)
-    const RECENT_ORDER_THRESHOLD_MS = 5 * 60 * 1000
     const existingPendingOrder = await prisma.order.findFirst({
       where: { 
         userId: user.id,
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Schedule delayed job to check payment status if callback doesn't arrive
-    await schedulePaymentCheck(order.id, 120000) // 2 minutes
+    await schedulePaymentCheck(order.id, PAYMENT_CHECK_DELAY_MS)
 
     return NextResponse.json({
       orderId: order.id,
@@ -314,7 +314,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for payment timeout (10 minutes)
-    const PAYMENT_TIMEOUT_MS = 10 * 60 * 1000
     const orderAge = Date.now() - new Date(order.createdAt).getTime()
     
     if (orderAge > PAYMENT_TIMEOUT_MS && order.status === 'PENDING') {

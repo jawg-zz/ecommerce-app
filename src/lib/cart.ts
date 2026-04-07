@@ -22,29 +22,7 @@ export interface CartWithProducts {
   total: number
 }
 
-function getCartKey(userId: string): string {
-  return `cart:${userId}`
-}
-
-export async function getCart(userId: string): Promise<CartWithProducts> {
-  const key = getCartKey(userId)
-  const cartData = await redis.get(key)
-
-  if (!cartData) {
-    return { items: [], total: 0 }
-  }
-
-  let items: CartItem[]
-  try {
-    const parsed = JSON.parse(cartData)
-    // Ensure items is always an array
-    items = Array.isArray(parsed) ? parsed : []
-  } catch (error) {
-    logError('Failed to parse cart data', { error: String(error) })
-    await redis.del(key)
-    return { items: [], total: 0 }
-  }
-
+async function buildCartWithProducts(items: CartItem[]): Promise<CartWithProducts> {
   if (items.length === 0) {
     return { items: [], total: 0 }
   }
@@ -78,6 +56,31 @@ export async function getCart(userId: string): Promise<CartWithProducts> {
     .filter(Boolean) as CartWithProducts['items']
 
   return { items: cartItems, total }
+}
+
+function getCartKey(userId: string): string {
+  return `cart:${userId}`
+}
+
+export async function getCart(userId: string): Promise<CartWithProducts> {
+  const key = getCartKey(userId)
+  const cartData = await redis.get(key)
+
+  if (!cartData) {
+    return { items: [], total: 0 }
+  }
+
+  let items: CartItem[]
+  try {
+    const parsed = JSON.parse(cartData)
+    items = Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    logError('Failed to parse cart data', { error: String(error) })
+    await redis.del(key)
+    return { items: [], total: 0 }
+  }
+
+  return buildCartWithProducts(items)
 }
 
 const CART_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
@@ -267,35 +270,7 @@ export async function restoreCartFromDb(userId: string): Promise<CartWithProduct
     return null
   }
 
-  const productIds = items.map(item => item.productId)
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-  })
-
-  const productMap = new Map(products.map(p => [p.id, p]))
-
-  let total = 0
-  const cartItems = items
-    .map(item => {
-      const product = productMap.get(item.productId)
-      if (!product) return null
-      const price = Number(product.price)
-      total += price * item.quantity
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        product: {
-          id: product.id,
-          name: product.name,
-          price,
-          image: product.image,
-          stock: product.stock,
-        },
-      }
-    })
-    .filter(Boolean) as CartWithProducts['items']
-
-  return { items: cartItems, total }
+  return buildCartWithProducts(items)
 }
 
 export async function getCartWithBackup(userId: string): Promise<CartWithProducts> {
@@ -329,36 +304,11 @@ export async function getCartWithBackup(userId: string): Promise<CartWithProduct
     return { items: [], total: 0 }
   }
 
-  const productIds = items.map(item => item.productId)
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-  })
+  const cart = await buildCartWithProducts(items)
 
-  const productMap = new Map(products.map(p => [p.id, p]))
-
-  let total = 0
-  const cartItems = items
-    .map(item => {
-      const product = productMap.get(item.productId)
-      if (!product) return null
-      total += product.price * item.quantity
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        product: {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.image,
-          stock: product.stock,
-        },
-      }
-    })
-    .filter(Boolean) as CartWithProducts['items']
-
-  if (cartItems.length > 0) {
-    await backupCartToDb(userId, { items: cartItems, total })
+  if (cart.items.length > 0) {
+    await backupCartToDb(userId, cart)
   }
 
-  return { items: cartItems, total }
+  return cart
 }

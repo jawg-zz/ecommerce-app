@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { querySTKStatus } from '@/lib/mpesa'
 import { clearCart } from '@/lib/cart'
 import { logInfo, logError } from '@/lib/logger'
+import type { RedisLockOperations } from '@/lib/types'
+
+const redisLock = redis as unknown as RedisLockOperations
 
 interface PaymentCheckJobData {
   orderId: string
@@ -14,7 +17,7 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
 
   logInfo('Processing payment check job', { orderId })
 
-  const lock = await (redis as any).set(`lock:payment:${orderId}`, '1', 'NX', 'EX', 30)
+  const lock = await redisLock.set(`lock:payment:${orderId}`, '1', 'NX', 'EX', 30)
   if (!lock) {
     logInfo('Payment already being processed, skipping', { orderId })
     return
