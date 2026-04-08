@@ -5,6 +5,7 @@ import { logInfo, logError } from '@/lib/logger'
 import { logCallbackError } from '@/lib/errors'
 import { clearCart } from '@/lib/cart'
 import { cancelPaymentCheck } from '@/lib/queue'
+import { mapMpesaResultToMessage, extractMpesaResultCode } from '@/lib/validation'
 import type { RedisLockOperations } from '@/lib/types'
 
 const redisLock = redis as unknown as RedisLockOperations
@@ -160,6 +161,14 @@ export async function POST(request: NextRequest) {
 
         await clearCart(order.userId)
 
+        // Warm the Redis cache so frontend polls don't hit DB
+        await redis.set(
+          `payment-final:${order.id}`,
+          JSON.stringify({ status: 'success' }),
+          'EX',
+          86400
+        )
+
         await cancelPaymentCheck(order.id)
 
         logInfo('ORDER CONFIRMATION - Payment successful', {
@@ -199,6 +208,15 @@ export async function POST(request: NextRequest) {
             data: { stock: { increment: item.quantity } },
           })
         }
+
+        // Warm the Redis cache with friendly message so frontend polls don't hit DB
+        const friendlyMessage = mapMpesaResultToMessage(`ResultCode: ${ResultCode} - ${ResultDesc}`)
+        await redis.set(
+          `payment-final:${order.id}`,
+          JSON.stringify({ status: 'cancelled', message: friendlyMessage, errorCode: String(ResultCode) }),
+          'EX',
+          86400
+        )
 
         logInfo('Payment failed - stock restored', {
           orderId: order.id,

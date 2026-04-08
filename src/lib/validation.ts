@@ -276,6 +276,9 @@ const mpesaResultCodeMessages: Record<number, string> = {
   9999: 'System error. Please try again in a moment.',
 }
 
+/**
+ * Maps a numeric M-Pesa ResultCode to a user-friendly message.
+ */
 export function getMpesaErrorMessage(errorCode: string): string {
   if (mpesaErrorMessages[errorCode]) {
     return mpesaErrorMessages[errorCode]
@@ -285,4 +288,24 @@ export function getMpesaErrorMessage(errorCode: string): string {
     return mpesaResultCodeMessages[numericCode]
   }
   return 'Payment failed. Please try again or contact support.'
+}
+
+/**
+ * Extracts ResultCode from a string like "ResultCode: 1 - Invalid input"
+ * and returns a user-friendly mapped message.
+ */
+export function mapMpesaResultToMessage(raw: string | null | undefined): string {
+  if (!raw) return 'Payment was cancelled.'
+  const match = raw.match(/ResultCode: (\d+) - (.+)/)
+  if (!match) return raw
+  return getMpesaErrorMessage(match[1])
+}
+
+/**
+ * Extracts just the ResultCode from a string like "ResultCode: 1 - Invalid input".
+ */
+export function extractMpesaResultCode(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const match = raw.match(/ResultCode: (\d+)/)
+  return match ? match[1] : null
 }
