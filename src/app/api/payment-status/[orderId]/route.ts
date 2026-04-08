@@ -9,7 +9,7 @@ export async function GET(
   // Allow guest checkout - verify order exists without requiring auth
   const order = await prisma.order.findUnique({
     where: { id: params.orderId },
-    select: { status: true },
+    select: { status: true, cancelReason: true },
   })
 
   if (!order) {
@@ -18,7 +18,7 @@ export async function GET(
 
   const status = order.status.toLowerCase()
 
-  // If payment is not pending, try to get detailed error info from Redis
+  // If payment failed or cancelled, try to get error details from Redis first
   if (status !== 'pending') {
     try {
       const redisKey = `payment-final:${params.orderId}`
@@ -32,7 +32,19 @@ export async function GET(
         })
       }
     } catch {
-      // Redis unavailable, return status only
+      // Redis unavailable, fall through to DB
+    }
+
+    // Fall back to cancelReason stored in DB by callback handler
+    if (order.cancelReason) {
+      // Extract ResultDesc from "ResultCode: X - ResultDesc" format
+      const match = order.cancelReason.match(/^ResultCode: \d+ - (.+)$/)
+      const message = match ? match[1] : order.cancelReason
+      return NextResponse.json({
+        status,
+        message,
+        errorCode: null,
+      })
     }
   }
 
