@@ -368,7 +368,7 @@ function CheckoutPageContent() {
   const [paymentStage, setPaymentStage] = useState<'details' | 'waiting' | 'confirmed'>('details')
   const [orderId, setOrderId] = useState<string | undefined>(undefined)
   const [timeRemaining, setTimeRemaining] = useState(600)
-  const [formErrors, setFormErrors] = useState<{ name?: string; address?: string; city?: string; county?: string }>({})
+  const [formErrors, setFormErrors] = useState<{ name?: string; address?: string; city?: string; state?: string }>({})
   
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
@@ -497,7 +497,7 @@ function CheckoutPageContent() {
         if (!value.trim()) return 'City is required'
         if (value.trim().length < 2) return 'City must be at least 2 characters'
         return undefined
-      case 'county':
+      case 'state':
         if (!value.trim()) return 'County is required'
         return undefined
       default:
@@ -544,10 +544,10 @@ function CheckoutPageContent() {
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
-    const countyError = validateField('county', shippingAddress.state)
+    const stateError = validateField('state', shippingAddress.state)
     const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
-    return !nameError && !addressError && !cityError && !countyError && phoneValidation.isValid
+    return !nameError && !addressError && !cityError && !stateError && phoneValidation.isValid
   }, [shippingAddress, phone])
 
   const cancelPayment = useCallback(async () => {
@@ -639,14 +639,14 @@ function CheckoutPageContent() {
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
-    const countyError = validateField('county', shippingAddress.state)
+    const stateError = validateField('state', shippingAddress.state)
     const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
     setFormErrors({
       name: nameError,
       address: addressError,
       city: cityError,
-      county: countyError,
+      state: stateError,
     })
 
     if (!phoneValidation.isValid) {
@@ -654,7 +654,7 @@ function CheckoutPageContent() {
       toast.error(phoneValidation.error || 'Please enter a valid phone number')
     }
 
-    if (nameError || addressError || cityError || countyError || !phoneValidation.isValid) {
+    if (nameError || addressError || cityError || stateError || !phoneValidation.isValid) {
       return
     }
 
@@ -810,9 +810,9 @@ function CheckoutPageContent() {
                         id="county"
                         autoComplete="address-level1"
                         value={shippingAddress.state}
-                        onChange={(e) => handleFieldChange('county', e.target.value)}
-                        onBlur={() => handleFieldBlur('county')}
-                        className={`input-field h-12 ${formErrors.county ? 'border-red-500 ring-2 ring-red-100' : ''} appearance-none bg-no-repeat bg-right pr-10`}
+                        onChange={(e) => handleFieldChange('state', e.target.value)}
+                        onBlur={() => handleFieldBlur('state')}
+                        className={`input-field h-12 ${formErrors.state ? 'border-red-500 ring-2 ring-red-100' : ''} appearance-none bg-no-repeat bg-right pr-10`}
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundSize: '1.5rem 1.5rem', backgroundPosition: 'right 0.75rem center' }}
                       >
                         <option value="">Select county</option>
@@ -820,8 +820,8 @@ function CheckoutPageContent() {
                           <option key={county} value={county}>{county}</option>
                         ))}
                       </select>
-                      {formErrors.county && (
-                        <p className="text-red-500 text-sm mt-2">{formErrors.county}</p>
+                      {formErrors.state && (
+                        <p className="text-red-500 text-sm mt-2">{formErrors.state}</p>
                       )}
                     </div>
                   </div>
