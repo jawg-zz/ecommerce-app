@@ -17,12 +17,14 @@ export async function GET(
   const status = order.status.toLowerCase()
 
   if (status !== 'pending' && order.cancelReason) {
-    // Extract ResultDesc from "ResultCode: X - ResultDesc" format
-    const match = order.cancelReason.match(/^ResultCode: \d+ - (.+)$/)
-    const message = match ? match[1] : order.cancelReason
+    // Extract ResultCode and ResultDesc from "ResultCode: X - ResultDesc" format
+    const match = order.cancelReason.match(/^ResultCode: (\d+) - (.+)$/)
+    const errorCode = match ? match[1] : null
+    const message = match ? match[2] : order.cancelReason
     return NextResponse.json({
       status,
       message,
+      errorCode,
     })
   }
 
