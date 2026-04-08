@@ -84,7 +84,7 @@ export interface ShippingAddress {
   address: string
   city: string
   state: string
-  zipCode: string
+  zipCode?: string
   country: string
 }
 

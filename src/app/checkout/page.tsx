@@ -11,43 +11,14 @@ import {
   getMpesaErrorMessage,
   isNetworkError,
 } from '@/lib/validation'
-import { KENYA_COUNTIES, ShippingAddress } from '@/types'
+import { ShippingAddress } from '@/types'
 import toast from 'react-hot-toast'
-
-
-
-
-
-interface FormErrors {
-  email?: string
-  name?: string
-  address?: string
-  city?: string
-  state?: string
-  zipCode?: string
-}
-
-interface SavedAddress {
-  address: ShippingAddress
-  phone: string
-}
 
 function formatPhoneNumber(value: string): string {
   const cleaned = value.replace(/\D/g, '')
   if (cleaned.length <= 4) return cleaned
   if (cleaned.length <= 7) return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`
   return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7, 10)}`
-}
-
-function formatPhoneForDisplay(phone: string): string {
-  const cleaned = phone.replace(/\D/g, '')
-  if (cleaned.startsWith('254') && cleaned.length === 12) {
-    return `+254 ${cleaned.slice(3, 6)} ${cleaned.slice(6, 9)} ${cleaned.slice(9)}`
-  }
-  if (cleaned.startsWith('0') && cleaned.length === 10) {
-    return `0${cleaned.slice(1, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`
-  }
-  return formatPhoneNumber(cleaned)
 }
 
 function getEstimatedDelivery(): string {
@@ -61,17 +32,12 @@ function getEstimatedDelivery(): string {
   })
 }
 
-// Progress Indicator Component
+// Progress Indicator - simplified to 2 stages
 function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed' }) {
   const steps = [
-    { id: 'details', label: 'Enter Details', icon: (
+    { id: 'details', label: 'Details', icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-      </svg>
-    )},
-    { id: 'waiting', label: 'Waiting for Payment', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     )},
     { id: 'confirmed', label: 'Confirmed', icon: (
@@ -82,19 +48,17 @@ function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed
   ]
 
   const stageOrder = ['details', 'waiting', 'confirmed']
-  const currentIndex = stageOrder.indexOf(stage)
+  const currentIndex = stage === 'waiting' ? 1 : stageOrder.indexOf(stage)
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between">
+    <div className="mb-6">
+      <div className="flex items-center justify-between max-w-md mx-auto">
         {steps.map((step, index) => {
           const isCompleted = index < currentIndex
           const isCurrent = index === currentIndex
-          const isPending = index > currentIndex
 
           return (
             <div key={step.id} className="flex items-center flex-1">
-              {/* Step Circle */}
               <div className="flex flex-col items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                   isCompleted ? 'bg-green-500 text-white' :
@@ -102,7 +66,7 @@ function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed
                   'bg-slate-100 text-slate-400'
                 }`}>
                   {isCompleted ? (
-                    <svg className="w-5 h-5 animate-checkmark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   ) : isCurrent ? (
@@ -111,16 +75,14 @@ function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed
                     step.icon
                   )}
                 </div>
-                <span className={`mt-2 text-xs sm:text-sm font-medium text-center ${
+                <span className={`mt-2 text-xs sm:text-sm font-medium ${
                   isCurrent ? 'text-sky-600' : isCompleted ? 'text-green-600' : 'text-slate-400'
                 }`}>
                   {step.label}
                 </span>
               </div>
-
-              {/* Connector Line */}
               {index < steps.length - 1 && (
-                <div className={`flex-1 h-1 mx-1 sm:mx-2 rounded min-w-[8px] ${
+                <div className={`flex-1 h-1 mx-2 rounded min-w-[24px] ${
                   isCompleted ? 'bg-green-500' : 'bg-slate-200'
                 }`} />
               )}
@@ -132,16 +94,8 @@ function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed
   )
 }
 
-// Enhanced Error Banner Component
-function ErrorBanner({ 
-  message, 
-  onRetry, 
-  onDismiss 
-}: { 
-  message: string
-  onRetry?: () => void
-  onDismiss?: () => void
-}) {
+// Error Banner Component
+function ErrorBanner({ message, onRetry, onDismiss }: { message: string; onRetry?: () => void; onDismiss?: () => void }) {
   return (
     <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6 animate-slide-down">
       <div className="flex items-start gap-3">
@@ -167,11 +121,7 @@ function ErrorBanner({
               </button>
             )}
             {onDismiss && (
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="text-sm text-red-500 hover:text-red-700"
-              >
+              <button type="button" onClick={onDismiss} className="text-sm text-red-500 hover:text-red-700">
                 Dismiss
               </button>
             )}
@@ -182,7 +132,7 @@ function ErrorBanner({
   )
 }
 
-// Enhanced Phone Input Component
+// Phone Input Component
 function PhoneInput({
   value,
   onChange,
@@ -227,11 +177,6 @@ function PhoneInput({
             </svg>
           </div>
         )}
-        {!isValid && !error && value && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-300 border-t-slate-600" />
-          </div>
-        )}
       </div>
       {error && value && (
         <p id="phone-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
@@ -241,9 +186,7 @@ function PhoneInput({
           {error}
         </p>
       )}
-      <p className="text-xs text-slate-500 mt-2">
-        Format: 0712 345 678 or 254 712 345 678
-      </p>
+      <p className="text-xs text-slate-500 mt-2">Format: 0712 345 678 or 254 712 345 678</p>
     </div>
   )
 }
@@ -251,7 +194,7 @@ function PhoneInput({
 // M-Pesa Instructions Component
 function MpesaInstructions() {
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 mb-6 border border-green-200">
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 mb-5 border border-green-200">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
           <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -262,10 +205,10 @@ function MpesaInstructions() {
       </div>
       <ol className="space-y-2">
         {[
-          { step: 1, text: 'Enter your M-Pesa phone number', icon: '📱' },
-          { step: 2, text: 'Click "Pay with M-Pesa" button', icon: '👆' },
-          { step: 3, text: 'Check your phone for the M-Pesa prompt', icon: '📲' },
-          { step: 4, text: 'Enter your M-Pesa PIN to confirm', icon: '🔐' },
+          { step: 1, text: 'Enter your M-Pesa phone number' },
+          { step: 2, text: 'Click "Pay with M-Pesa" button' },
+          { step: 3, text: 'Check your phone for the M-Pesa prompt' },
+          { step: 4, text: 'Enter your M-Pesa PIN to confirm' },
         ].map((item) => (
           <li key={item.step} className="flex items-center gap-3 text-sm text-green-700">
             <span className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
@@ -301,7 +244,6 @@ function WaitingForPayment({
 
   return (
     <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center animate-pulse-slow shadow-lg shadow-green-200">
           <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -314,11 +256,10 @@ function WaitingForPayment({
         </div>
       </div>
 
-      {/* Payment Details Card */}
       <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-slate-500">Payment sent to</span>
-          <span className="text-sm font-medium text-slate-700">{formatPhoneForDisplay(phone)}</span>
+          <span className="text-sm font-medium text-slate-700">{formatPhoneNumber(phone)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-slate-500">Amount</span>
@@ -326,7 +267,6 @@ function WaitingForPayment({
         </div>
       </div>
 
-      {/* Timer */}
       <div className={`rounded-lg p-3 mb-4 ${isUrgent ? 'bg-orange-100 border border-orange-300' : 'bg-green-100'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -343,7 +283,6 @@ function WaitingForPayment({
         </div>
       </div>
 
-      {/* Help Text */}
       <div className="bg-blue-50 rounded-lg p-3 mb-4 border border-blue-200">
         <div className="flex items-start gap-2">
           <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -355,14 +294,12 @@ function WaitingForPayment({
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-3">
         <button
           onClick={onResend}
@@ -394,62 +331,6 @@ function WaitingForPayment({
   )
 }
 
-// Accordion Section Component
-function AccordionSection({
-  title,
-  icon,
-  children,
-  isOpen,
-  onToggle,
-  completed = false,
-}: {
-  title: string
-  icon: React.ReactNode
-  children: React.ReactNode
-  isOpen: boolean
-  onToggle: () => void
-  completed?: boolean
-}) {
-  return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            completed ? 'bg-green-100 text-green-600' : isOpen ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'
-          }`}>
-            {completed ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              icon
-            )}
-          </div>
-          <span className={`font-medium ${isOpen ? 'text-slate-900' : 'text-slate-600'}`}>{title}</span>
-        </div>
-        <svg 
-          className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor" 
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div className="p-4 pt-0 border-t border-slate-100">
-          {children}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function SecurityBadges() {
   return (
     <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
@@ -477,34 +358,18 @@ function SecurityBadges() {
 
 function CheckoutPageContent() {
   const router = useRouter()
-  const { user, cart, setCart, refreshCart } = useApp()
-  const [isGuestCheckout, setIsGuestCheckout] = useState(false)
-  const [guestEmail, setGuestEmail] = useState('')
+  const { cart, refreshCart } = useApp()
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [phone, setPhone] = useState('')
   const [phoneValid, setPhoneValid] = useState(false)
-  const [checkoutRequestId, setCheckoutRequestId] = useState('')
-  const [statusMessage, setStatusMessage] = useState('')
-
-  // Accordion state for one-page checkout
-  const [openSection, setOpenSection] = useState<'shipping' | 'payment' | 'summary'>('shipping')
-  const [sectionsCompleted, setSectionsCompleted] = useState({
-    shipping: false,
-    payment: false,
-  })
-
   const [phoneError, setPhoneError] = useState('')
-  const [formErrors, setFormErrors] = useState<FormErrors>({})
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
-  const [useSavedAddress, setUseSavedAddress] = useState(false)
   const [cartWarning, setCartWarning] = useState<string | null>(null)
-  const [orderNumber, setOrderNumber] = useState('')
-  const [paymentPhone, setPaymentPhone] = useState('')
   const [paymentStage, setPaymentStage] = useState<'details' | 'waiting' | 'confirmed'>('details')
   const [orderId, setOrderId] = useState<string | undefined>(undefined)
   const [timeRemaining, setTimeRemaining] = useState(600)
+  const [formErrors, setFormErrors] = useState<{ name?: string; address?: string; city?: string; county?: string }>({})
+  
   const cancelRef = useRef(false)
   const retryDataRef = useRef<{ shippingAddress: ShippingAddress; phone: string; orderId?: string } | null>(null)
   const initialCartRef = useRef<string>('')
@@ -514,67 +379,23 @@ function CheckoutPageContent() {
     address: '',
     city: '',
     state: '',
-    zipCode: '',
     country: 'KE',
   })
 
   useEffect(() => {
-    // Allow guest checkout - just refresh cart
     refreshCart()
   }, [refreshCart])
 
+  // Payment status polling
   useEffect(() => {
-    const fetchSavedAddresses = async () => {
-      // Skip for guest checkout
-      if (!user) return
-      try {
-        const res = await fetch('/api/orders')
-        if (res.ok) {
-          const data = await res.json()
-          const orders = data.orders || []
-          const addresses: SavedAddress[] = []
-          const seen = new Set<string>()
-          orders.forEach((order: { shippingAddress: ShippingAddress | null }) => {
-            if (order.shippingAddress) {
-              const key = JSON.stringify(order.shippingAddress)
-              if (!seen.has(key)) {
-                seen.add(key)
-                addresses.push({
-                  address: order.shippingAddress,
-                  phone: '',
-                })
-              }
-            }
-          })
-          setSavedAddresses(addresses.slice(0, 3))
-        }
-      } catch (e) {
-        console.error('Failed to fetch saved addresses:', e)
-      }
-    }
-    fetchSavedAddresses()
-  }, [user])
+    if (paymentStage !== 'waiting' || !orderId) return
 
-  // Cleanup payment state when not in payment mode
-  useEffect(() => {
-    if (paymentStage === 'waiting') return
-    
-    setPaymentStage('details')
-    setCheckoutRequestId('')
-    setStatusMessage('')
-    setError('')
-    setOrderId(undefined)
-  }, [openSection])
-
-  useEffect(() => {
-    if (openSection !== 'payment' || paymentStage !== 'waiting' || !orderId) return
-    
     let pollCount = 0
     const maxPolls = 60
-    
+
     const pollInterval = setInterval(async () => {
       pollCount++
-      
+
       try {
         const res = await fetch(`/api/payment-status/${orderId}`)
         if (!res.ok) {
@@ -586,9 +407,9 @@ function CheckoutPageContent() {
           }
           return
         }
-        
+
         const data = await res.json()
-        
+
         if (data.status === 'paid') {
           clearInterval(pollInterval)
           router.push(`/order-confirmation?orderId=${orderId}`)
@@ -601,7 +422,7 @@ function CheckoutPageContent() {
           setPaymentStage('details')
           setProcessing(false)
         }
-        
+
         if (pollCount >= maxPolls) {
           clearInterval(pollInterval)
           setError('Payment timed out. Please check your M-Pesa messages.')
@@ -618,62 +439,51 @@ function CheckoutPageContent() {
         }
       }
     }, 1000)
-    
-    return () => clearInterval(pollInterval)
-  }, [openSection, orderId, router, paymentStage])
 
+    return () => clearInterval(pollInterval)
+  }, [orderId, router, paymentStage])
+
+  // Cart change detection
   useEffect(() => {
     if (cart.items.length > 0 && initialCartRef.current) {
       const initialItems = JSON.parse(initialCartRef.current)
       const currentIds = cart.items.map(i => `${i.productId}:${i.quantity}`)
       const initialIds = initialItems.map((i: { productId: string; quantity: number }) => `${i.productId}:${i.quantity}`)
-      
-      const hasChanged = currentIds.some((id: string) => !initialIds.includes(id)) || 
+
+      const hasChanged = currentIds.some((id: string) => !initialIds.includes(id)) ||
                         initialIds.some((id: string) => !currentIds.includes(id))
-      
+
       if (hasChanged) {
         setCartWarning('Your cart has changed. Please review before completing payment.')
       }
     } else if (cart.items.length > 0 && !initialCartRef.current) {
       initialCartRef.current = JSON.stringify(cart.items.map(i => ({ productId: i.productId, quantity: i.quantity })))
     }
-  }, [cart.items, setCart])
+  }, [cart.items])
 
+  // Timer countdown
   useEffect(() => {
     if (paymentStage !== 'waiting') {
       setTimeRemaining(600)
       return
     }
-    
+
     const interval = setInterval(() => {
       setTimeRemaining(prev => Math.max(0, prev - 1))
     }, 1000)
-    
+
     return () => clearInterval(interval)
   }, [paymentStage])
 
+  // Redirect if cart is empty
   useEffect(() => {
     if (cart.items.length === 0) {
       router.push('/cart')
     }
   }, [cart.items.length, router])
 
-  const handleUseSavedAddress = (saved: SavedAddress) => {
-    setShippingAddress(saved.address)
-    if (saved.phone) {
-      setPhone(saved.phone)
-      const validation = validatePhone(saved.phone)
-      setPhoneValid(validation.isValid)
-    }
-    setUseSavedAddress(false)
-  }
-
-  const validateField = (field: keyof FormErrors, value: string) => {
+  const validateField = (field: keyof typeof formErrors, value: string): string | undefined => {
     switch (field) {
-      case 'email':
-        if (!value.trim()) return 'Email is required'
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email'
-        return undefined
       case 'name':
         if (!value.trim()) return 'Full name is required'
         if (value.trim().length < 2) return 'Name must be at least 2 characters'
@@ -687,39 +497,33 @@ function CheckoutPageContent() {
         if (!value.trim()) return 'City is required'
         if (value.trim().length < 2) return 'City must be at least 2 characters'
         return undefined
-      case 'state':
+      case 'county':
         if (!value.trim()) return 'County is required'
-        return undefined
-      case 'zipCode':
-        if (!value.trim()) return 'ZIP code is required'
-        if (!/^\d{5,6}$/.test(value.replace(/\s/g, ''))) return 'ZIP code must be 5-6 digits'
         return undefined
       default:
         return undefined
     }
   }
 
-  const handleAddressChange = (field: keyof ShippingAddress, value: string) => {
-    setShippingAddress((prev) => ({ ...prev, [field]: value }))
+  const handleFieldChange = (field: keyof typeof formErrors, value: string) => {
+    setShippingAddress(prev => ({ ...prev, [field]: value }))
     
-    if (touched[field]) {
-      const error = field in formErrors ? validateField(field as keyof FormErrors, value) : undefined
-      setFormErrors((prev) => ({ ...prev, [field]: error }))
+    // Clear error when user types
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: undefined }))
     }
   }
 
-  const handleBlur = (field: string) => {
-    setTouched((prev) => ({ ...prev, [field]: true }))
-    const value = shippingAddress[field as keyof typeof shippingAddress]
-    const error = validateField(field as keyof FormErrors, value)
-    setFormErrors((prev) => ({ ...prev, [field]: error }))
+  const handleFieldBlur = (field: keyof typeof formErrors) => {
+    const error = validateField(field, shippingAddress[field as keyof ShippingAddress] as string)
+    setFormErrors(prev => ({ ...prev, [field]: error }))
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     const formatted = formatPhoneNumber(value)
     setPhone(formatted)
-    
+
     const cleaned = formatted.replace(/\D/g, '')
     if (cleaned.length > 0) {
       const validation = validatePhone(cleaned)
@@ -737,41 +541,39 @@ function CheckoutPageContent() {
   }
 
   const isFormValid = useCallback(() => {
-    if (isGuestCheckout && !validateField('email', guestEmail)) return false
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
-    const stateError = validateField('state', shippingAddress.state)
-    const zipCodeError = validateField('zipCode', shippingAddress.zipCode)
+    const countyError = validateField('county', shippingAddress.state)
     const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
-    return !nameError && !addressError && !cityError && !stateError && !zipCodeError && phoneValidation.isValid
-  }, [shippingAddress, phone, isGuestCheckout, guestEmail])
+    return !nameError && !addressError && !cityError && !countyError && phoneValidation.isValid
+  }, [shippingAddress, phone])
 
   const cancelPayment = useCallback(async () => {
     cancelRef.current = true
-    
-    const orderId = retryDataRef.current?.orderId
-    if (orderId) {
+
+    const orderIdToCancel = retryDataRef.current?.orderId
+    if (orderIdToCancel) {
       try {
-        const statusRes = await fetch(`/api/checkout?orderId=${orderId}`)
+        const statusRes = await fetch(`/api/checkout?orderId=${orderIdToCancel}`)
         if (statusRes.ok) {
           const statusData = await statusRes.json()
           if (statusData.order?.status === 'PAID') {
-            router.push(`/order-confirmation?orderId=${orderId}`)
+            router.push(`/order-confirmation?orderId=${orderIdToCancel}`)
             return
           }
         }
-        
-        await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
+
+        await fetch(`/api/checkout?orderId=${orderIdToCancel}`, { method: 'DELETE' })
       } catch (e) {
         console.error('Failed to cancel order:', e)
       }
     }
-    
-    setOpenSection('shipping')
+
     setError('')
     setProcessing(false)
+    setPaymentStage('details')
     refreshCart()
   }, [refreshCart, router])
 
@@ -786,18 +588,12 @@ function CheckoutPageContent() {
     setProcessing(true)
     cancelRef.current = false
     setPaymentStage('details')
-    setStatusMessage('Sending payment request...')
-
-    // Move to payment screen first
-    setPaymentPhone(phoneNumber)
-    setOpenSection('payment')
+    setPaymentStage('waiting')
 
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shippingAddress: address, phoneNumber }),
       })
 
@@ -806,7 +602,6 @@ function CheckoutPageContent() {
       if (!res.ok) {
         setCheckoutRequestId('')
         if (data.errorCode) {
-          // Prefer actual M-Pesa ResultDesc (data.message), fall back to lookup
           setError(data.message || getMpesaErrorMessage(data.errorCode))
         } else {
           setError(data.error || 'Checkout failed')
@@ -820,7 +615,6 @@ function CheckoutPageContent() {
         return
       }
 
-      // Only set after success
       setCheckoutRequestId(data.checkoutRequestId)
       setPaymentStage('waiting')
       setOrderId(data.orderId)
@@ -836,29 +630,23 @@ function CheckoutPageContent() {
     }
   }
 
-  const handleSubmitShipping = async (e: React.FormEvent) => {
+  const [checkoutRequestId, setCheckoutRequestId] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    const newTouched: Record<string, boolean> = { name: true, address: true, city: true, state: true, zipCode: true, phone: true }
-    if (isGuestCheckout) newTouched.email = true
-    
-    setTouched(newTouched)
-    
-    const emailError = isGuestCheckout ? validateField('email', guestEmail) : undefined
+
+    // Validate all fields
     const nameError = validateField('name', shippingAddress.name)
     const addressError = validateField('address', shippingAddress.address)
     const cityError = validateField('city', shippingAddress.city)
-    const stateError = validateField('state', shippingAddress.state)
-    const zipCodeError = validateField('zipCode', shippingAddress.zipCode)
+    const countyError = validateField('county', shippingAddress.state)
     const phoneValidation = validatePhone(phone.replace(/\D/g, ''))
 
     setFormErrors({
-      email: emailError,
       name: nameError,
       address: addressError,
       city: cityError,
-      state: stateError,
-      zipCode: zipCodeError,
+      county: countyError,
     })
 
     if (!phoneValidation.isValid) {
@@ -866,45 +654,17 @@ function CheckoutPageContent() {
       toast.error(phoneValidation.error || 'Please enter a valid phone number')
     }
 
-    if (emailError || nameError || addressError || cityError || stateError || zipCodeError || !phoneValidation.isValid) {
+    if (nameError || addressError || cityError || countyError || !phoneValidation.isValid) {
       return
     }
 
     retryPayment(shippingAddress, phone.replace(/\D/g, ''))
   }
 
-  const handlePaymentTimeout = async (orderId: string) => {
-    setError('Payment timed out. Please try again.')
-    setOpenSection('shipping')
-    
-    try {
-      await fetch(`/api/checkout?orderId=${orderId}`, { method: 'DELETE' })
-    } catch (e) {
-      console.error('Failed to cancel order:', e)
-    }
-    
-    refreshCart()
-  }
-
   const subtotal = cart.total
   const shipping = 0
   const tax = 0
   const total = subtotal + shipping + tax
-
-  // Allow guest checkout - no redirect to login
-
-  const getStatusMessage = () => {
-    switch (paymentStage) {
-      case 'details':
-        return 'Enter your details to continue'
-      case 'waiting':
-        return 'Payment request sent! Check your phone now'
-      case 'confirmed':
-        return 'Payment confirmed!'
-      default:
-        return statusMessage || 'Processing your payment...'
-    }
-  }
 
   if (cart.items.length === 0) {
     return (
@@ -923,11 +683,10 @@ function CheckoutPageContent() {
   return (
     <div className="py-6 md:py-8">
       <div className="container-custom">
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Checkout</h1>
-        
-        {/* Progress Indicator */}
+        <h1 className="text-2xl md:text-3xl font-bold mb-6">Checkout</h1>
+
         <CheckoutProgress stage={paymentStage} />
-        
+
         {cartWarning && (
           <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-6 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
@@ -938,8 +697,8 @@ function CheckoutPageContent() {
               </div>
               <p className="text-sm text-yellow-700 font-medium">{cartWarning}</p>
             </div>
-            <button 
-              onClick={() => { setCartWarning(null); refreshCart(); }} 
+            <button
+              onClick={() => { setCartWarning(null); refreshCart(); }}
               className="text-sm font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
             >
               Refresh
@@ -948,282 +707,124 @@ function CheckoutPageContent() {
         )}
 
         <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* Left Column - Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmitShipping} className="card p-5 md:p-6">
-              {/* Guest Checkout Option */}
-              {!user && (
-                <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
+            {paymentStage === 'waiting' ? (
+              <WaitingForPayment
+                phone={phone}
+                total={total}
+                timeRemaining={timeRemaining}
+                onResend={handleRetry}
+                onCancel={cancelPayment}
+                processing={processing}
+                error={error}
+              />
+            ) : (
+              <form onSubmit={handleSubmit} className="card p-5 md:p-6">
+                {error && (
+                  <ErrorBanner
+                    message={error}
+                    onRetry={handleRetry}
+                    onDismiss={() => setError('')}
+                  />
+                )}
+
+                {/* Delivery Address Section */}
+                <h2 className="text-lg font-semibold mb-5 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </span>
+                  Delivery Address
+                </h2>
+
+                <div className="space-y-4 mb-6">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="name"
+                      type="text"
+                      autoComplete="name"
+                      value={shippingAddress.name}
+                      onChange={(e) => handleFieldChange('name', e.target.value)}
+                      onBlur={() => handleFieldBlur('name')}
+                      className={`input-field h-12 ${formErrors.name ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                      placeholder="John Doe"
+                    />
+                    {formErrors.name && (
+                      <p className="text-red-500 text-sm mt-2">{formErrors.name}</p>
+                    )}
+                  </div>
+
+                  {/* Address */}
+                  <div>
+                    <label htmlFor="address" className="block text-sm font-semibold text-slate-700 mb-2">
+                      Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="address"
+                      type="text"
+                      autoComplete="street-address"
+                      value={shippingAddress.address}
+                      onChange={(e) => handleFieldChange('address', e.target.value)}
+                      onBlur={() => handleFieldBlur('address')}
+                      className={`input-field h-12 ${formErrors.address ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                      placeholder="e.g., 123 Main Street, Westlands"
+                    />
+                    {formErrors.address && (
+                      <p className="text-red-500 text-sm mt-2">{formErrors.address}</p>
+                    )}
+                  </div>
+
+                  {/* City & County */}
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="font-semibold text-amber-800">Guest Checkout</p>
-                      <p className="text-sm text-amber-600">No account required - just enter your email below</p>
+                      <label htmlFor="city" className="block text-sm font-semibold text-slate-700 mb-2">
+                        City <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="city"
+                        type="text"
+                        autoComplete="address-level2"
+                        value={shippingAddress.city}
+                        onChange={(e) => handleFieldChange('city', e.target.value)}
+                        onBlur={() => handleFieldBlur('city')}
+                        className={`input-field h-12 ${formErrors.city ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                        placeholder="Nairobi"
+                      />
+                      {formErrors.city && (
+                        <p className="text-red-500 text-sm mt-2">{formErrors.city}</p>
+                      )}
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Email field for guest checkout */}
-              {!user && (
-                <div className="mb-6">
-                  <label htmlFor="guest-email" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="guest-email"
-                    type="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
-                    onBlur={() => { setTouched(prev => ({ ...prev, email: true })); setFormErrors(prev => ({ ...prev, email: validateField('email', guestEmail) })) }}
-                    aria-invalid={touched.email && formErrors.email ? 'true' : undefined}
-                    aria-describedby={touched.email && formErrors.email ? 'guest-email-error' : undefined}
-                    className={`input-field h-12 ${touched.email && formErrors.email ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                    placeholder="you@example.com"
-                  />
-                  {touched.email && formErrors.email && (
-                    <p id="guest-email-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {formErrors.email}
-                    </p>
-                  )}
-                  <p className="text-xs text-slate-500 mt-2">
-                    We&apos;ll send your order confirmation here
-                  </p>
-                </div>
-              )}
-
-              <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <span className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </span>
-                Shipping Address
-              </h2>
-
-              {savedAddresses.length > 0 && !useSavedAddress && (
-                <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-blue-800">Saved Address</span>
-                    <button
-                      type="button"
-                      onClick={() => setUseSavedAddress(true)}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded-lg transition-colors"
-                    >
-                      Use saved address
-                    </button>
-                  </div>
-                  <p className="text-sm text-blue-700">
-                    {savedAddresses[0].address.name}, {savedAddresses[0].address.city}
-                  </p>
-                </div>
-              )}
-
-              {useSavedAddress && savedAddresses.length > 0 && (
-                <div className="mb-6 p-4 border-2 border-slate-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-semibold">Select an address</span>
-                    <button
-                      type="button"
-                      onClick={() => setUseSavedAddress(false)}
-                      className="text-sm text-slate-500 hover:text-slate-700"
-                    >
-                      Enter new address
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {savedAddresses.map((saved, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => handleUseSavedAddress(saved)}
-                        className="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all"
-                      >
-                        <p className="font-medium">{saved.address.name}</p>
-                        <p className="text-sm text-slate-600">{saved.address.address}</p>
-                        <p className="text-sm text-slate-600">{saved.address.city}, {saved.address.state} {saved.address.zipCode}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {error && (
-                <ErrorBanner 
-                  message={error} 
-                  onRetry={handleRetry}
-                  onDismiss={() => setError('')}
-                />
-              )}
-
-              <div className="space-y-5">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    autoComplete="name"
-                    value={shippingAddress.name}
-                    onChange={(e) => handleAddressChange('name', e.target.value)}
-                    onBlur={() => handleBlur('name')}
-                    aria-invalid={touched.name && formErrors.name ? 'true' : undefined}
-                    aria-describedby={touched.name && formErrors.name ? 'name-error' : undefined}
-                    className={`input-field h-12 ${touched.name && formErrors.name ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                    placeholder="John Doe"
-                  />
-                  {touched.name && formErrors.name && (
-                    <p id="name-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {formErrors.name}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="address" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="address"
-                    type="text"
-                    autoComplete="street-address"
-                    value={shippingAddress.address}
-                    onChange={(e) => handleAddressChange('address', e.target.value)}
-                    onBlur={() => handleBlur('address')}
-                    aria-invalid={touched.address && formErrors.address ? 'true' : undefined}
-                    aria-describedby={touched.address && formErrors.address ? 'address-error' : undefined}
-                    className={`input-field h-12 ${touched.address && formErrors.address ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                    placeholder="e.g., 123 Main Street, Westlands"
-                  />
-                  {touched.address && formErrors.address && (
-                    <p id="address-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {formErrors.address}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-semibold text-slate-700 mb-2">
-                      City <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="city"
-                      type="text"
-                      autoComplete="address-level2"
-                      value={shippingAddress.city}
-                      onChange={(e) => handleAddressChange('city', e.target.value)}
-                      onBlur={() => handleBlur('city')}
-                      aria-invalid={touched.city && formErrors.city ? 'true' : undefined}
-                      aria-describedby={touched.city && formErrors.city ? 'city-error' : undefined}
-                      className={`input-field h-12 ${touched.city && formErrors.city ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                      placeholder="Nairobi"
-                    />
-                    {touched.city && formErrors.city && (
-                      <p id="city-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {formErrors.city}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="state" className="block text-sm font-semibold text-slate-700 mb-2">
-                      County <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="state"
-                      autoComplete="address-level1"
-                      value={shippingAddress.state}
-                      onChange={(e) => handleAddressChange('state', e.target.value)}
-                      onBlur={() => handleBlur('state')}
-                      aria-invalid={touched.state && formErrors.state ? 'true' : undefined}
-                      aria-describedby={touched.state && formErrors.state ? 'state-error' : undefined}
-                      className={`input-field h-12 ${touched.state && formErrors.state ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                    >
-                      <option value="">Select County</option>
-                      {KENYA_COUNTIES.map((county) => (
-                        <option key={county} value={county}>
-                          {county}
-                        </option>
-                      ))}
-                    </select>
-                    {touched.state && formErrors.state && (
-                      <p id="state-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {formErrors.state}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="zipCode" className="block text-sm font-semibold text-slate-700 mb-2">
-                      ZIP Code <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="zipCode"
-                      type="text"
-                      autoComplete="postal-code"
-                      value={shippingAddress.zipCode}
-                      onChange={(e) => handleAddressChange('zipCode', e.target.value)}
-                      onBlur={() => handleBlur('zipCode')}
-                      aria-invalid={touched.zipCode && formErrors.zipCode ? 'true' : undefined}
-                      aria-describedby={touched.zipCode && formErrors.zipCode ? 'zipCode-error' : undefined}
-                      className={`input-field h-12 ${touched.zipCode && formErrors.zipCode ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                      placeholder="00100"
-                    />
-                    {touched.zipCode && formErrors.zipCode && (
-                      <p id="zipCode-error" className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {formErrors.zipCode}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="country" className="block text-sm font-semibold text-slate-700 mb-2">
-                      Country <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="country"
-                      value={shippingAddress.country}
-                      onChange={(e) => handleAddressChange('country', e.target.value)}
-                      className="input-field h-12"
-                    >
-                      <option value="KE">Kenya</option>
-                      <option value="US">United States</option>
-                      <option value="CA">Canada</option>
-                      <option value="GB">United Kingdom</option>
-                    </select>
+                    <div>
+                      <label htmlFor="county" className="block text-sm font-semibold text-slate-700 mb-2">
+                        County <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="county"
+                        type="text"
+                        autoComplete="address-level1"
+                        value={shippingAddress.state}
+                        onChange={(e) => handleFieldChange('county', e.target.value)}
+                        onBlur={() => handleFieldBlur('county')}
+                        className={`input-field h-12 ${formErrors.county ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                        placeholder="Nairobi"
+                      />
+                      {formErrors.county && (
+                        <p className="text-red-500 text-sm mt-2">{formErrors.county}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* M-Pesa Payment Section */}
-                <div className="border-t-2 border-slate-200 pt-6 mt-6">
+                <div className="border-t-2 border-slate-200 pt-6">
                   <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                     <span className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                       <svg className="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor">
@@ -1232,7 +833,7 @@ function CheckoutPageContent() {
                     </span>
                     M-Pesa Payment
                   </h3>
-                  
+
                   <MpesaInstructions />
 
                   <PhoneInput
@@ -1243,25 +844,34 @@ function CheckoutPageContent() {
                     disabled={processing}
                   />
                 </div>
-              </div>
-            </form>
 
-            {/* Waiting for Payment State */}
-            {openSection === 'payment' && paymentStage === 'waiting' && (
-              <WaitingForPayment
-                phone={paymentPhone}
-                total={total}
-                timeRemaining={timeRemaining}
-                onResend={handleRetry}
-                onCancel={cancelPayment}
-                processing={processing}
-                error={error}
-              />
+                {/* Pay Button */}
+                <button
+                  type="submit"
+                  disabled={processing || !isFormValid()}
+                  className="w-full btn-primary py-4 text-lg mt-6 min-h-[56px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-lg shadow-sky-200 hover:shadow-xl hover:shadow-sky-300 transition-all"
+                >
+                  {processing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                      </svg>
+                      Pay {formatPrice(total)} with M-Pesa
+                    </>
+                  )}
+                </button>
+              </form>
             )}
 
             <SecurityBadges />
           </div>
 
+          {/* Right Column - Order Summary */}
           <div className="lg:col-span-1">
             <div className="card p-5 md:p-6 h-fit lg:sticky lg:top-24 border-2 border-sky-100 shadow-xl shadow-sky-50 rounded-2xl">
               <div className="flex items-center gap-2 mb-4">
@@ -1313,12 +923,6 @@ function CheckoutPageContent() {
                   <span className="text-slate-600">Shipping</span>
                   <span className="text-green-600 font-semibold">Free</span>
                 </div>
-                {tax > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Tax</span>
-                    <span>{formatPrice(tax)}</span>
-                  </div>
-                )}
               </div>
 
               <div className="border-t-2 border-slate-200 pt-4 mb-4 bg-slate-50 -mx-5 md:-mx-6 px-5 md:px-6 py-4 rounded-b-xl">
@@ -1329,7 +933,7 @@ function CheckoutPageContent() {
                 <p className="text-xs text-slate-500 mt-1">KES (Kenyan Shillings)</p>
               </div>
 
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 mb-4 border border-green-200">
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200">
                 <div className="flex items-center gap-2 text-sm text-green-700">
                   <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5.05 3.636a1 1 0 010 1.414 7 7 0 000 9.9 1 1 0 11-1.414 1.414 9 9 0 010-12.728 1 1 0 011.414 0zm9.9 0a1 1 0 011.414 0 9 9 0 010 12.728 1 1 0 11-1.414-1.414 7 7 0 000-9.9 1 1 0 010-1.414zM7.879 6.464a1 1 0 010 1.414 3 3 0 000 4.243 1 1 0 11-1.415 1.414 5 5 0 010-7.07 1 1 0 011.415 0zm4.242 0a1 1 0 011.415 0 5 5 0 010 7.072 1 1 0 01-1.415-1.415 3 3 0 000-4.242 1 1 0 010-1.415z" clipRule="evenodd" />
@@ -1337,28 +941,6 @@ function CheckoutPageContent() {
                   <span>Estimated delivery: <strong className="text-green-800">{getEstimatedDelivery()}</strong></span>
                 </div>
               </div>
-
-              <button
-                type="submit"
-                onClick={handleSubmitShipping}
-                disabled={processing || !isFormValid()}
-                aria-busy={processing}
-                className="w-full btn-primary py-4 text-lg min-h-[56px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed sticky bottom-4 lg:static z-10 rounded-xl shadow-lg shadow-sky-200 hover:shadow-xl hover:shadow-sky-300 transition-all"
-              >
-                {processing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                    </svg>
-                    Pay {formatPrice(total)} with M-Pesa
-                  </>
-                )}
-              </button>
 
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-xl mt-4 border border-green-200">
                 <div className="flex items-center justify-center gap-2 text-sm text-green-700 font-medium">
