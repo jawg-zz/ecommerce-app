@@ -193,23 +193,24 @@ export async function POST(request: NextRequest) {
       let errorMessage = 'Payment initiation failed. Please try again.'
       if (stkError instanceof Error) {
         const errorStr = stkError.message
-        // Extract M-Pesa error messages
-        if (errorStr.includes('Invalid phone number')) {
+        // Extract M-Pesa error codes first and look up friendly messages
+        if (errorStr.match(/\(Code: \d+\)/)) {
+          const codeMatch = errorStr.match(/\(Code: (\d+)\)/)
+          if (codeMatch) {
+            errorMessage = getMpesaErrorMessage(codeMatch[1])
+          }
+        } else if (errorStr.includes('Invalid phone number')) {
           errorMessage = 'Invalid phone number. Please check and try again.'
         } else if (errorStr.includes('Insufficient funds')) {
           errorMessage = 'Insufficient M-Pesa balance. Please top up and try again.'
         } else if (errorStr.includes('timeout') || errorStr.includes('timed out')) {
           errorMessage = 'Request timed out. Please check your connection and try again.'
-        } else if (errorStr.includes('The initiator information is invalid')) {
-          errorMessage = 'Payment service temporarily unavailable. Please try again later.'
         } else if (errorStr.includes('Unable to lock subscriber')) {
           errorMessage = 'Your M-Pesa account is busy. Please try again in a moment.'
-        } else if (errorStr.match(/\(Code: \d+\)/)) {
-          // Extract the code and look up a user-friendly message
-          const codeMatch = errorStr.match(/\(Code: (\d+)\)/)
-          if (codeMatch) {
-            errorMessage = getMpesaErrorMessage(codeMatch[1])
-          }
+        } else if (errorStr.includes('The initiator information is invalid') || errorStr.includes('Invalid initiator')) {
+          errorMessage = 'Payment service configuration error. Please contact support.'
+        } else if (errorStr.includes('Invalid input')) {
+          errorMessage = 'Payment request was rejected. Please try again.'
         }
       }
       
