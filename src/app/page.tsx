@@ -53,23 +53,234 @@ const testimonials = [
 ]
 
 const trustBadges = [
-  { 
+  {
     label: 'Secure Payment',
     icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
   },
-  { 
+  {
     label: 'Fast Delivery',
     icon: 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0',
   },
-  { 
+  {
     label: 'Easy Returns',
     icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
   },
-  { 
+  {
     label: '24/7 Support',
     icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
   },
 ]
+
+const marqueeItems = [
+  '🔥 Flash Sale: Up to 30% Off!',
+  '🚚 Free Delivery on Orders over KES 5,000',
+  '⭐ Rated 4.9/5 by 10,000+ Customers',
+  '📦 Same-Day Shipping Available',
+  '🎉 New Arrivals Weekly',
+  '💯 30-Day Money-Back Guarantee',
+]
+
+const stats = [
+  { value: '10,000+', label: 'Customers' },
+  { value: '20+', label: 'Products' },
+  { value: '3', label: 'Categories' },
+]
+
+function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: string }) {
+  const [displayValue, setDisplayValue] = useState('0')
+  const [hasAnimated, setHasAnimated] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasAnimated) {
+          setHasAnimated(true)
+          const numericValue = parseInt(value.replace(/[^0-9]/g, ''), 10)
+          const prefix = value.match(/^[^0-9]*/)?.[0] || ''
+          const duration = 1500
+          const steps = 30
+          const stepDuration = duration / steps
+          let currentStep = 0
+
+          const timer = setInterval(() => {
+            currentStep++
+            const progress = currentStep / steps
+            const eased = 1 - Math.pow(1 - progress, 3)
+            const current = Math.round(numericValue * eased)
+            setDisplayValue(prefix + current.toLocaleString() + suffix)
+
+            if (currentStep >= steps) {
+              clearInterval(timer)
+              setDisplayValue(value + suffix)
+            }
+          }, stepDuration)
+        }
+      },
+      { threshold: 0.5 }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [value, suffix, hasAnimated])
+
+  return <span ref={ref}>{displayValue}</span>
+}
+
+function CategoryCardTilt({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+    const card = cardRef.current
+    const rect = card.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    const rotateX = ((y - centerY) / centerY) * -8
+    const rotateY = ((x - centerX) / centerX) * 8
+    card.style.setProperty('--rotateX', `${rotateX}deg`)
+    card.style.setProperty('--rotateY', `${rotateY}deg`)
+  }
+
+  const handleMouseLeave = () => {
+    if (!cardRef.current) return
+    cardRef.current.style.setProperty('--rotateX', '0deg')
+    cardRef.current.style.setProperty('--rotateY', '0deg')
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      className={`tilt-card ${className}`}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform:
+          'perspective(1000px) rotateX(var(--rotateX, 0deg)) rotateY(var(--rotateY, 0deg)) scale(1.02)',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function MarqueeStrip() {
+  const items = [...marqueeItems, ...marqueeItems]
+
+  return (
+    <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 py-3 border-y border-slate-700/50">
+      <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 via-purple-500/5 to-pink-500/5" />
+      <div className="flex animate-marquee">
+        {items.map((item, index) => (
+          <span
+            key={index}
+            className="flex-shrink-0 px-8 text-sm font-medium text-white/90 whitespace-nowrap"
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function HotDealsSection() {
+  return (
+    <section className="py-12 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-yellow-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+      </div>
+      <div className="container-custom relative">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="text-6xl animate-bounce">⚡</div>
+            <div>
+              <h2 className="text-3xl font-bold">Hot Deals</h2>
+              <p className="text-white/80">Limited time offers - while stocks last!</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="flex items-center gap-2">
+              <div className="text-center bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 min-w-[60px]">
+                <div className="text-3xl font-bold">12</div>
+                <div className="text-xs text-white/70">Hours</div>
+              </div>
+              <span className="text-2xl font-bold">:</span>
+              <div className="text-center bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 min-w-[60px]">
+                <div className="text-3xl font-bold">45</div>
+                <div className="text-xs text-white/70">Mins</div>
+              </div>
+              <span className="text-2xl font-bold">:</span>
+              <div className="text-center bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 min-w-[60px]">
+                <div className="text-3xl font-bold">30</div>
+                <div className="text-xs text-white/70">Secs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function EmptyStateIllustration() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="relative mb-6">
+        <div className="w-32 h-32 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center">
+          <svg
+            className="w-16 h-16 text-slate-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+            />
+          </svg>
+        </div>
+        <div className="absolute -top-2 -right-2 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center animate-float">
+          <span className="text-xl">📦</span>
+        </div>
+        <div className="absolute -bottom-1 -left-3 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center animate-float" style={{ animationDelay: '0.5s' }}>
+          <span className="text-lg">✨</span>
+        </div>
+      </div>
+      <h3 className="text-xl font-semibold text-slate-700 mb-2">No Products Found</h3>
+      <p className="text-slate-500 text-center max-w-md mb-6">
+        We couldn't find any products matching your criteria. Check back soon for new arrivals!
+      </p>
+    </div>
+  )
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="card overflow-hidden">
+      <div className="aspect-square bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 animate-shimmer bg-[length:200%_100%]" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-slate-200 rounded w-3/4 animate-pulse" />
+        <div className="h-6 bg-slate-200 rounded w-1/2 animate-pulse" />
+        <div className="h-10 bg-slate-200 rounded w-full animate-pulse" />
+      </div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const { recentlyViewed } = useApp()
@@ -118,13 +329,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-            <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-sky-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
-        </div>
-        
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        <div className="absolute inset-0 animate-gradient-mesh" style={{
+          background: 'radial-gradient(ellipse at 20% 30%, rgba(56, 189, 248, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(129, 140, 248, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 40% 80%, rgba(192, 132, 252, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 60%, rgba(56, 189, 248, 0.08) 0%, transparent 40%)'
+        }} />
+
         <div className="absolute top-32 right-20 hidden lg:block">
           <div className="w-20 h-20 border-2 border-white/10 rounded-2xl rotate-12 animate-float" />
         </div>
@@ -134,34 +343,50 @@ export default function HomePage() {
         <div className="absolute top-1/3 right-1/4 hidden lg:block">
           <div className="w-8 h-8 bg-yellow-400/20 rounded-lg rotate-45 animate-float" style={{ animationDelay: '0.5s' }} />
         </div>
-        
+
+        <div className="absolute right-10 top-1/2 -translate-y-1/2 hidden xl:block animate-float">
+          <div className="relative">
+            <div className="w-64 h-64 bg-gradient-to-br from-sky-500/20 to-purple-500/20 rounded-3xl backdrop-blur-sm border border-white/10 flex items-center justify-center">
+              <svg className="w-32 h-32 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <div className="absolute -top-4 -right-4 w-12 h-12 bg-yellow-400/30 rounded-xl rotate-12 animate-float" style={{ animationDelay: '0.3s' }}>
+              <span className="absolute inset-0 flex items-center justify-center text-2xl">🏷️</span>
+            </div>
+            <div className="absolute -bottom-2 -left-6 w-16 h-16 bg-green-400/30 rounded-full animate-float" style={{ animationDelay: '0.6s' }}>
+              <span className="absolute inset-0 flex items-center justify-center text-2xl">✨</span>
+            </div>
+          </div>
+        </div>
+
         <div className="relative container-custom py-20 lg:py-32">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-sky-300 mb-6 animate-fade-in">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
               Free shipping on orders over KES 5,000
             </div>
-            
+
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight animate-slide-up">
               Discover
-              <span className="block gradient-text">Amazing Products</span>
+              <span className="block animate-shimmer-text gradient-text">Amazing Products</span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-slate-300 mb-8 max-w-xl animate-slide-up stagger-1">
-              Shop the latest electronics, trendy clothing, and bestselling books. 
+              Shop the latest electronics, trendy clothing, and bestselling books.
               Quality products at unbeatable prices delivered to your doorstep.
             </p>
-            
+
             <div className="flex flex-wrap gap-4 animate-slide-up stagger-2">
-              <Link 
-                href="/products" 
+              <Link
+                href="/products"
                 className="group relative btn-primary text-base px-8 py-3.5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900 overflow-hidden"
               >
                 <span className="relative z-10">Shop Now</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </Link>
-              <Link 
-                href="/products?category=ELECTRONICS" 
+              <Link
+                href="/products?category=ELECTRONICS"
                 className="group btn-secondary text-base px-8 py-3.5 bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 hover:-translate-y-0.5"
               >
                 Browse Electronics
@@ -171,10 +396,21 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="flex items-center gap-8 mt-12 animate-fade-in stagger-3">
+            <div className="flex flex-wrap gap-8 mt-12 animate-fade-in stagger-3">
+              {stats.map((stat, index) => (
+                <div key={stat.label} className="text-center">
+                  <div className="text-2xl md:text-3xl font-bold text-white">
+                    <AnimatedCounter value={stat.value} />
+                  </div>
+                  <div className="text-sm text-slate-400">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-8 mt-8 animate-fade-in stagger-4">
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4].map((i) => (
-                  <div 
+                  <div
                     key={i}
                     className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 border-2 border-slate-800 flex items-center justify-center text-sm font-medium"
                   >
@@ -199,21 +435,23 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 to-transparent" />
       </section>
 
-            <section className="py-6 bg-slate-50 border-b border-slate-200">
+      <MarqueeStrip />
+
+      <section className="py-6 bg-slate-50 border-b border-slate-200">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:flex md:flex-wrap justify-center gap-6 md:gap-16">
             {trustBadges.map((badge, index) => (
-              <div 
-                key={badge.label} 
+              <div
+                key={badge.label}
                 className="flex items-center justify-center gap-3 text-slate-600 animate-fade-in group cursor-default"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center group-hover:shadow-md group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300">
-                  <svg 
-                    className="w-5 h-5 text-sky-500 group-hover:text-sky-600 transition-colors duration-300" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-5 h-5 text-sky-500 group-hover:text-sky-600 transition-colors duration-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                     strokeWidth={1.5}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d={badge.icon} />
@@ -258,10 +496,12 @@ export default function HomePage() {
                   <Link
                     key={category.name}
                     href={`/products?category=${category.name}`}
-                    className="group relative overflow-hidden card-elevated p-8 text-center hover:scale-[1.02] hover:shadow-2xl transition-all duration-300 animate-slide-up"
+                    className="group relative overflow-hidden card-elevated p-8 text-center hover:shadow-2xl transition-all duration-300 animate-slide-up"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${catConfig.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                    <CategoryCardTilt className="absolute inset-0">
+                      <div className={`absolute inset-0 bg-gradient-to-br ${catConfig.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                    </CategoryCardTilt>
                     <div className="relative">
                       <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 group-hover:bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                         <svg
@@ -289,6 +529,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <HotDealsSection />
+
       <section className="py-16 md:py-20 bg-gradient-to-b from-white to-slate-50">
         <div className="container-custom">
           <div className="flex items-end justify-between mb-8 md:mb-12">
@@ -300,8 +542,8 @@ export default function HomePage() {
                 Handpicked selections just for you
               </p>
             </div>
-            <Link 
-              href="/products" 
+            <Link
+              href="/products"
               className="hidden md:flex items-center gap-1 text-sky-600 hover:text-sky-700 font-medium transition-colors"
             >
               View All Products
@@ -314,42 +556,26 @@ export default function HomePage() {
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="card animate-pulse">
-                  <div className="aspect-square bg-slate-200" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-slate-200 rounded w-3/4" />
-                    <div className="h-6 bg-slate-200 rounded w-1/2" />
-                    <div className="h-10 bg-slate-200 rounded" />
-                  </div>
-                </div>
+                <ProductSkeleton key={i} />
               ))}
             </div>
           ) : products.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {products.map((product, index) => (
-                <div 
-                  key={product.id} 
-                  className="animate-slide-up"
-                  style={{ animationDelay: `${index * 0.05}s` }}
+                <div
+                  key={product.id}
+                  className="animate-slide-up opacity-0"
+                  style={{
+                    animationDelay: `${index * 0.05}s`,
+                    animationFillMode: 'forwards'
+                  }}
                 >
                   <ProductCard product={product} priority={index < 4} />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <p className="text-slate-500 text-lg mb-4">
-                No products available yet.
-              </p>
-              <Link href="/products" className="btn-primary">
-                Browse Products
-              </Link>
-            </div>
+            <EmptyStateIllustration />
           )}
 
           <div className="mt-8 text-center md:hidden">
@@ -375,10 +601,13 @@ export default function HomePage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {recommended.slice(0, 4).map((product, index) => (
-                <div 
-                  key={product.id} 
-                  className="animate-slide-up"
-                  style={{ animationDelay: `${index * 0.05}s` }}
+                <div
+                  key={product.id}
+                  className="animate-slide-up opacity-0"
+                  style={{
+                    animationDelay: `${index * 0.05}s`,
+                    animationFillMode: 'forwards'
+                  }}
                 >
                   <ProductCard product={product} priority={index < 2} />
                 </div>
@@ -390,7 +619,7 @@ export default function HomePage() {
 
       <RecentlyViewed />
 
-            <section className="py-16 md:py-20 bg-slate-900 text-white overflow-hidden">
+      <section className="py-16 md:py-20 bg-slate-900 text-white overflow-hidden">
         <div className="container-custom">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold mb-2">
@@ -413,11 +642,11 @@ export default function HomePage() {
                       </svg>
                     ))}
                   </div>
-                  
+
                   <p className="text-lg md:text-xl text-slate-200 mb-8 leading-relaxed animate-fade-in">
                     {testimonials[currentTestimonial].text}
                   </p>
-                  
+
                   <div className="animate-slide-up">
                     <p className="font-semibold text-white">
                       {testimonials[currentTestimonial].name}
@@ -455,8 +684,8 @@ export default function HomePage() {
                   key={index}
                   onClick={() => setCurrentTestimonial(index)}
                   className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentTestimonial 
-                      ? 'bg-sky-500 w-8' 
+                    index === currentTestimonial
+                      ? 'bg-sky-500 w-8'
                       : 'bg-slate-600 hover:bg-slate-500'
                   }`}
                   aria-label={`Go to testimonial ${index + 1}`}
@@ -467,7 +696,7 @@ export default function HomePage() {
         </div>
       </section>
 
-            <section className="py-16 md:py-20">
+      <section className="py-16 md:py-20">
         <div className="container-custom">
           <div className="relative card-elevated p-8 md:p-12 bg-gradient-to-br from-sky-500 to-blue-600 text-white text-center rounded-3xl overflow-hidden">
             <div className="absolute inset-0 opacity-10">
@@ -484,7 +713,7 @@ export default function HomePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </div>
-            
+
             <div className="relative">
               <h2 className="text-2xl md:text-3xl font-bold mb-4">
                 Ready to Start Shopping?
@@ -493,8 +722,8 @@ export default function HomePage() {
                 Join thousands of satisfied customers and discover amazing deals today.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <Link 
-                  href="/products" 
+                <Link
+                  href="/products"
                   className="group bg-white text-sky-600 hover:bg-sky-50 font-semibold py-3 px-8 rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-sky-500"
                 >
                   <span className="flex items-center gap-2">
@@ -504,8 +733,8 @@ export default function HomePage() {
                     </svg>
                   </span>
                 </Link>
-                <Link 
-                  href="/login" 
+                <Link
+                  href="/login"
                   className="group bg-white/20 hover:bg-white/30 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-sky-500"
                 >
                   <span className="flex items-center gap-2">

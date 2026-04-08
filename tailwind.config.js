@@ -64,6 +64,10 @@ module.exports = {
         'scale': 'scale 0.2s ease-out',
         'float': 'float 3s ease-in-out infinite',
         'wiggle': 'wiggle 0.5s ease-in-out',
+        'marquee': 'marquee 30s linear infinite',
+        'marquee-fast': 'marquee 20s linear infinite',
+        'shimmer-text': 'shimmerText 3s ease-in-out infinite',
+        'gradient-mesh': 'gradientMesh 15s ease infinite',
       },
       keyframes: {
         fadeIn: {
@@ -114,6 +118,20 @@ module.exports = {
         wiggle: {
           '0%, 100%': { transform: 'rotate(-3deg)' },
           '50%': { transform: 'rotate(3deg)' },
+        },
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        shimmerText: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
+        gradientMesh: {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '25%': { backgroundPosition: '50% 100%' },
+          '50%': { backgroundPosition: '100% 50%' },
+          '75%': { backgroundPosition: '50% 0%' },
         },
       },
       transitionTimingFunction: {
