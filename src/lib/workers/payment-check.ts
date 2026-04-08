@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { querySTKStatus } from '@/lib/mpesa'
 import { clearCart } from '@/lib/cart'
 import { logInfo, logError } from '@/lib/logger'
+import { mapMpesaResultToMessage } from '@/lib/validation'
 import type { RedisLockOperations } from '@/lib/types'
 
 const redisLock = redis as unknown as RedisLockOperations
@@ -92,17 +93,21 @@ async function processPaymentCheckJob(job: Job<PaymentCheckJobData>): Promise<vo
       await clearCart(order.userId)
 
       logInfo('Publishing to Redis for order', { orderId })
+      const friendlyMessage = paymentStatus.resultCode
+        ? mapMpesaResultToMessage(`ResultCode: ${paymentStatus.resultCode} - ${paymentStatus.resultDesc}`)
+        : (paymentStatus.resultDesc || 'Payment failed. Please try again.')
+
       await redis.publish(`payment-status:${orderId}`, JSON.stringify({
         status: 'cancelled',
         orderId,
-        message: paymentStatus.resultDesc || 'Payment status updated',
+        message: friendlyMessage,
         errorCode: paymentStatus.resultCode,
       }))
       logInfo('Redis publish complete', { orderId })
 
       await redis.set(`payment-final:${orderId}`, JSON.stringify({ 
         status: 'cancelled',
-        message: paymentStatus.resultDesc || 'Payment status updated',
+        message: friendlyMessage,
         errorCode: paymentStatus.resultCode,
       }), 'EX', 86400)
 
