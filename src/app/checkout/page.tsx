@@ -438,7 +438,7 @@ function CheckoutPageContent() {
           setProcessing(false)
         }
       }
-    }, 1000)
+    }, 2500)
 
     return () => clearInterval(pollInterval)
   }, [orderId, router, paymentStage])
@@ -552,8 +552,10 @@ function CheckoutPageContent() {
 
   const cancelPayment = useCallback(async () => {
     cancelRef.current = true
+    // Clear retry data since we're cancelling, not retrying
+    retryDataRef.current = null
 
-    const orderIdToCancel = retryDataRef.current?.orderId
+    const orderIdToCancel = orderId
     if (orderIdToCancel) {
       try {
         const statusRes = await fetch(`/api/checkout?orderId=${orderIdToCancel}`)
@@ -565,37 +567,44 @@ function CheckoutPageContent() {
           }
         }
 
-        await fetch(`/api/checkout?orderId=${orderIdToCancel}`, { method: 'DELETE' })
+        const deleteRes = await fetch(`/api/checkout?orderId=${orderIdToCancel}`, { method: 'DELETE' })
+        if (!deleteRes.ok) {
+          toast.error('Failed to cancel order. Please try again.')
+        }
       } catch (e) {
         console.error('Failed to cancel order:', e)
+        toast.error('Failed to cancel order. Please check your connection.')
       }
     }
 
     setError('')
     setProcessing(false)
     setPaymentStage('details')
+    setOrderId(undefined)
     refreshCart()
-  }, [refreshCart, router])
+  }, [orderId, refreshCart, router])
 
   const handleRetry = async () => {
     if (retryDataRef.current) {
-      retryPayment(retryDataRef.current.shippingAddress, retryDataRef.current.phone)
+      const cleanedPhone = retryDataRef.current.phone.replace(/\D/g, '')
+      const validation = validatePhone(cleanedPhone)
+      if (!validation.isValid) {
+        toast.error(validation.error || 'Invalid phone number')
+        return
+      }
+      retryPayment(retryDataRef.current.shippingAddress, cleanedPhone)
     }
   }
 
   const retryPayment = async (address: ShippingAddress, phoneNumber: string) => {
-    // Cancel any previous pending order before starting a new attempt
     const prevOrderId = retryDataRef.current?.orderId
 
-    // Clear all previous payment state so old polling can't interfere
     setError('')
     setOrderId(undefined)
     setProcessing(true)
     cancelRef.current = false
     setPaymentStage('details')
-    setPaymentStage('waiting')
 
-    // Cancel the previous pending order to avoid orphaned orders
     if (prevOrderId) {
       fetch(`/api/checkout?orderId=${prevOrderId}`, { method: 'DELETE' }).catch(() => {})
     }

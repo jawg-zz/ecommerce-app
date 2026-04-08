@@ -172,28 +172,9 @@ export async function POST(request: NextRequest) {
     } catch (stkError) {
       logError('STK Push failed, rolling back order', { error: String(stkError), orderId: order.id })
       
-      await prisma.$transaction(async (tx) => {
-        const orderWithItems = await tx.order.update({
-          where: { id: order.id },
-          data: { status: 'CANCELLED' },
-          include: { items: true },
-        })
-
-        for (const item of orderWithItems.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          })
-        }
-      })
-
-      logError('Stock restored after STK Push failure', { orderId: order.id })
-      
-      // Extract user-friendly error message
       let errorMessage = 'Payment initiation failed. Please try again.'
       if (stkError instanceof Error) {
         const errorStr = stkError.message
-        // Extract M-Pesa error codes first and look up friendly messages
         if (errorStr.match(/\(Code: \d+\)/)) {
           const codeMatch = errorStr.match(/\(Code: (\d+)\)/)
           if (codeMatch) {
@@ -214,7 +195,23 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Return error response with orderId so frontend can handle it
+      await prisma.$transaction(async (tx) => {
+        const orderWithItems = await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'CANCELLED', cancelReason: errorMessage },
+          include: { items: true },
+        })
+
+        for (const item of orderWithItems.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+      })
+
+      logError('Stock restored after STK Push failure', { orderId: order.id })
+      
       return NextResponse.json(
         { 
           error: errorMessage,
@@ -411,7 +408,7 @@ export async function DELETE(request: NextRequest) {
     await prisma.$transaction(async (tx) => {
       await tx.order.update({
         where: { id: orderId },
-        data: { status: 'CANCELLED' },
+        data: { status: 'CANCELLED', cancelReason: 'Payment cancelled by user' },
       })
 
       for (const item of order.items) {

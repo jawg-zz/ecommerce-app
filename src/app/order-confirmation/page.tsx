@@ -176,10 +176,15 @@ function OrderConfirmationContent() {
                 </svg>
               </div>
               <h1 className="text-xl font-bold mb-2">Payment Pending</h1>
-              <p className="text-slate-600 mb-6">Your payment is still being processed. Please check your phone for the M-Pesa prompt.</p>
-              <Link href="/orders" className="btn-primary">
-                View Order Status
-              </Link>
+              <p className="text-slate-600 mb-6">Your payment is still being processed. If you haven&apos;t received an M-Pesa prompt, you can retry payment.</p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/checkout" className="btn-primary">
+                  Retry Payment
+                </Link>
+                <Link href="/orders" className="btn-secondary">
+                  View Order Status
+                </Link>
+              </div>
             </div>
           </div>
         </div>
