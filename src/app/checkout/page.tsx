@@ -11,7 +11,7 @@ import {
   getMpesaErrorMessage,
   isNetworkError,
 } from '@/lib/validation'
-import { ShippingAddress } from '@/types'
+import { ShippingAddress, KENYA_COUNTIES } from '@/types'
 import toast from 'react-hot-toast'
 
 function formatPhoneNumber(value: string): string {
@@ -806,16 +806,20 @@ function CheckoutPageContent() {
                       <label htmlFor="county" className="block text-sm font-semibold text-slate-700 mb-2">
                         County <span className="text-red-500">*</span>
                       </label>
-                      <input
+                      <select
                         id="county"
-                        type="text"
                         autoComplete="address-level1"
                         value={shippingAddress.state}
                         onChange={(e) => handleFieldChange('county', e.target.value)}
                         onBlur={() => handleFieldBlur('county')}
-                        className={`input-field h-12 ${formErrors.county ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                        placeholder="Nairobi"
-                      />
+                        className={`input-field h-12 ${formErrors.county ? 'border-red-500 ring-2 ring-red-100' : ''} appearance-none bg-no-repeat bg-right pr-10`}
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundSize: '1.5rem 1.5rem', backgroundPosition: 'right 0.75rem center' }}
+                      >
+                        <option value="">Select county</option>
+                        {KENYA_COUNTIES.map((county) => (
+                          <option key={county} value={county}>{county}</option>
+                        ))}
+                      </select>
                       {formErrors.county && (
                         <p className="text-red-500 text-sm mt-2">{formErrors.county}</p>
                       )}
