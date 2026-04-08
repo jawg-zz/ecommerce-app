@@ -5,6 +5,7 @@ import { getCart, clearCart } from '@/lib/cart'
 import { prisma } from '@/lib/prisma'
 import { initiateSTKPush } from '@/lib/mpesa'
 import { logError } from '@/lib/logger'
+import { getMpesaErrorMessage } from '@/lib/validation'
 import { logCheckoutError, logPaymentError } from '@/lib/errors'
 import { checkoutRateLimiter } from '@/lib/ratelimit'
 import { schedulePaymentCheck } from '@/lib/queue'
@@ -204,8 +205,11 @@ export async function POST(request: NextRequest) {
         } else if (errorStr.includes('Unable to lock subscriber')) {
           errorMessage = 'Your M-Pesa account is busy. Please try again in a moment.'
         } else if (errorStr.match(/\(Code: \d+\)/)) {
-          // Keep M-Pesa error codes if present
-          errorMessage = errorStr
+          // Extract the code and look up a user-friendly message
+          const codeMatch = errorStr.match(/\(Code: (\d+)\)/)
+          if (codeMatch) {
+            errorMessage = getMpesaErrorMessage(codeMatch[1])
+          }
         }
       }
       
