@@ -584,13 +584,21 @@ function CheckoutPageContent() {
   }
 
   const retryPayment = async (address: ShippingAddress, phoneNumber: string) => {
-    // Clear ALL previous payment state so old polling can't interfere
+    // Cancel any previous pending order before starting a new attempt
+    const prevOrderId = retryDataRef.current?.orderId
+
+    // Clear all previous payment state so old polling can't interfere
     setError('')
     setOrderId(undefined)
     setProcessing(true)
     cancelRef.current = false
     setPaymentStage('details')
     setPaymentStage('waiting')
+
+    // Cancel the previous pending order to avoid orphaned orders
+    if (prevOrderId) {
+      fetch(`/api/checkout?orderId=${prevOrderId}`, { method: 'DELETE' }).catch(() => {})
+    }
 
     try {
       const res = await fetch('/api/checkout', {
