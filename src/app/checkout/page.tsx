@@ -584,7 +584,9 @@ function CheckoutPageContent() {
   }
 
   const retryPayment = async (address: ShippingAddress, phoneNumber: string) => {
+    // Clear ALL previous payment state so old polling can't interfere
     setError('')
+    setOrderId(undefined)
     setProcessing(true)
     cancelRef.current = false
     setPaymentStage('details')
