@@ -111,7 +111,7 @@ function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed
                     step.icon
                   )}
                 </div>
-                <span className={`mt-2 text-xs font-medium text-center ${
+                <span className={`mt-2 text-xs sm:text-sm font-medium text-center ${
                   isCurrent ? 'text-sky-600' : isCompleted ? 'text-green-600' : 'text-slate-400'
                 }`}>
                   {step.label}
@@ -120,7 +120,7 @@ function CheckoutProgress({ stage }: { stage: 'details' | 'waiting' | 'confirmed
 
               {/* Connector Line */}
               {index < steps.length - 1 && (
-                <div className={`flex-1 h-1 mx-2 rounded ${
+                <div className={`flex-1 h-1 mx-1 sm:mx-2 rounded min-w-[8px] ${
                   isCompleted ? 'bg-green-500' : 'bg-slate-200'
                 }`} />
               )}
@@ -1118,7 +1118,7 @@ function CheckoutPageContent() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="city" className="block text-sm font-semibold text-slate-700 mb-2">
                       City <span className="text-red-500">*</span>
@@ -1177,7 +1177,7 @@ function CheckoutPageContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="zipCode" className="block text-sm font-semibold text-slate-700 mb-2">
                       ZIP Code <span className="text-red-500">*</span>

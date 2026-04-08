@@ -277,8 +277,8 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             {product.name}
           </h3>
           
-          <div className="flex items-center justify-between">
-            <p className="text-sky-600 font-bold text-lg">
+            <div className="flex items-center justify-between">
+            <p className="text-sky-600 font-bold text-xl sm:text-lg">
               {formatPrice(product.price)}
             </p>
             

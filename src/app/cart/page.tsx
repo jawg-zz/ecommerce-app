@@ -345,7 +345,7 @@ export default function CartPage() {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="card p-6 h-fit sticky top-24">
+            <div className="card p-4 sm:p-6 h-fit sticky top-24 mb-20 lg:mb-0">
               <h2 className="text-lg font-semibold mb-6">Order Summary</h2>
 
               <div className="space-y-3 mb-6">

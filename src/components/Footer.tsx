@@ -172,7 +172,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {trustBadges.map((badge, index) => (
               <div 
                 key={badge.title}
