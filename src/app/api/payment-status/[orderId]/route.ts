@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getMpesaErrorMessage } from '@/lib/validation'
 
 export async function GET(
   request: NextRequest,
@@ -20,7 +21,8 @@ export async function GET(
     // Extract ResultCode and ResultDesc from "ResultCode: X - ResultDesc" format
     const match = order.cancelReason.match(/^ResultCode: (\d+) - (.+)$/)
     const errorCode = match ? match[1] : null
-    const message = match ? match[2] : order.cancelReason
+    // Use the friendly mapped message, not the raw M-Pesa ResultDesc
+    const message = errorCode ? getMpesaErrorMessage(errorCode) : order.cancelReason
     return NextResponse.json({
       status,
       message,

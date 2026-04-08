@@ -308,9 +308,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (order.status === 'CANCELLED') {
-      return NextResponse.json({ 
+      // Extract code from "ResultCode: N - ResultDesc" format and map to friendly message
+      const match = order.cancelReason?.match(/^ResultCode: (\d+) - /)
+      const errorCode = match ? match[1] : null
+      const message = errorCode ? getMpesaErrorMessage(errorCode) : (order.cancelReason || 'Payment was cancelled')
+      return NextResponse.json({
         status: 'cancelled',
-        message: order.cancelReason || 'Payment was cancelled'
+        message,
+        errorCode,
       })
     }
 
