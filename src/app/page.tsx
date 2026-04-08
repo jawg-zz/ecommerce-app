@@ -53,10 +53,22 @@ const testimonials = [
 ]
 
 const trustBadges = [
-  { icon: '🛡️', label: 'Secure Payment' },
-  { icon: '🚚', label: 'Fast Delivery' },
-  { icon: '↩️', label: 'Easy Returns' },
-  { icon: '💬', label: '24/7 Support' },
+  { 
+    label: 'Secure Payment',
+    icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  },
+  { 
+    label: 'Fast Delivery',
+    icon: 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0',
+  },
+  { 
+    label: 'Easy Returns',
+    icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  },
+  { 
+    label: '24/7 Support',
+    icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+  },
 ]
 
 export default function HomePage() {
@@ -106,10 +118,21 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+            <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-20 left-10 w-72 h-72 bg-sky-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        </div>
+        
+        <div className="absolute top-32 right-20 hidden lg:block">
+          <div className="w-20 h-20 border-2 border-white/10 rounded-2xl rotate-12 animate-float" />
+        </div>
+        <div className="absolute bottom-40 left-20 hidden lg:block">
+          <div className="w-16 h-16 bg-gradient-to-br from-sky-500/20 to-transparent rounded-full animate-float" style={{ animationDelay: '1s' }} />
+        </div>
+        <div className="absolute top-1/3 right-1/4 hidden lg:block">
+          <div className="w-8 h-8 bg-yellow-400/20 rounded-lg rotate-45 animate-float" style={{ animationDelay: '0.5s' }} />
         </div>
         
         <div className="relative container-custom py-20 lg:py-32">
@@ -119,9 +142,9 @@ export default function HomePage() {
               Free shipping on orders over KES 5,000
             </div>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight animate-slide-up">
-              Discover Amazing
-              <span className="block gradient-text">Products Online</span>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight animate-slide-up">
+              Discover
+              <span className="block gradient-text">Amazing Products</span>
             </h1>
             
             <p className="text-lg md:text-xl text-slate-300 mb-8 max-w-xl animate-slide-up stagger-1">
@@ -130,18 +153,22 @@ export default function HomePage() {
             </p>
             
             <div className="flex flex-wrap gap-4 animate-slide-up stagger-2">
-            <Link 
-              href="/products" 
-              className="btn-primary text-base px-8 py-3.5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-            >
-              Shop Now
-            </Link>
-            <Link 
-              href="/products?category=ELECTRONICS" 
-              className="btn-secondary text-base px-8 py-3.5 bg-white/10 text-white border-white/20 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-slate-900"
-            >
-              Browse Electronics
-            </Link>
+              <Link 
+                href="/products" 
+                className="group relative btn-primary text-base px-8 py-3.5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900 overflow-hidden"
+              >
+                <span className="relative z-10">Shop Now</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </Link>
+              <Link 
+                href="/products?category=ELECTRONICS" 
+                className="group btn-secondary text-base px-8 py-3.5 bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 hover:-translate-y-0.5"
+              >
+                Browse Electronics
+                <svg className="inline-block w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
 
             <div className="flex items-center gap-8 mt-12 animate-fade-in stagger-3">
@@ -172,17 +199,27 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 to-transparent" />
       </section>
 
-      <section className="py-6 bg-slate-50 border-b border-slate-200">
+            <section className="py-6 bg-slate-50 border-b border-slate-200">
         <div className="container-custom">
-          <div className="flex flex-wrap justify-center gap-8 md:gap-16">
+          <div className="grid grid-cols-2 md:flex md:flex-wrap justify-center gap-6 md:gap-16">
             {trustBadges.map((badge, index) => (
               <div 
                 key={badge.label} 
-                className="flex items-center gap-2 text-slate-600 animate-fade-in"
+                className="flex items-center justify-center gap-3 text-slate-600 animate-fade-in group cursor-default"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <span className="text-xl">{badge.icon}</span>
-                <span className="text-sm font-medium hidden sm:inline">{badge.label}</span>
+                <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center group-hover:shadow-md group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300">
+                  <svg 
+                    className="w-5 h-5 text-sky-500 group-hover:text-sky-600 transition-colors duration-300" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor" 
+                    strokeWidth={1.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d={badge.icon} />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">{badge.label}</span>
               </div>
             ))}
           </div>
@@ -221,12 +258,12 @@ export default function HomePage() {
                   <Link
                     key={category.name}
                     href={`/products?category=${category.name}`}
-                    className="group relative overflow-hidden card-elevated p-8 text-center hover:-translate-y-1 transition-all duration-300 animate-slide-up"
+                    className="group relative overflow-hidden card-elevated p-8 text-center hover:scale-[1.02] hover:shadow-2xl transition-all duration-300 animate-slide-up"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${catConfig.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
                     <div className="relative">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 group-hover:bg-white/20 rounded-2xl flex items-center justify-center transition-colors duration-300">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 group-hover:bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                         <svg
                           className="w-8 h-8 text-slate-600 group-hover:text-white transition-colors duration-300"
                           fill="none"
@@ -353,7 +390,7 @@ export default function HomePage() {
 
       <RecentlyViewed />
 
-      <section className="py-16 md:py-20 bg-slate-900 text-white overflow-hidden">
+            <section className="py-16 md:py-20 bg-slate-900 text-white overflow-hidden">
         <div className="container-custom">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold mb-2">
@@ -365,30 +402,51 @@ export default function HomePage() {
           </div>
 
           <div className="max-w-2xl mx-auto">
-            <div className="relative bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 md:p-12 text-center">
-              <div className="absolute top-4 left-4 text-6xl text-slate-700 font-serif">"</div>
-              <div className="relative">
-                <div className="flex justify-center mb-6">
-                  {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
-                    <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                
-                <p className="text-lg md:text-xl text-slate-200 mb-8 leading-relaxed">
-                  {testimonials[currentTestimonial].text}
-                </p>
-                
-                <div>
-                  <p className="font-semibold text-white">
-                    {testimonials[currentTestimonial].name}
+            <div className="relative group">
+              <div className="relative bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 md:p-12 text-center overflow-hidden">
+                <div className="absolute top-4 left-4 md:left-8 text-5xl md:text-6xl text-slate-700 font-serif opacity-50">"</div>
+                <div className="relative" key={currentTestimonial}>
+                  <div className="flex justify-center mb-6">
+                    {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
+                      <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  
+                  <p className="text-lg md:text-xl text-slate-200 mb-8 leading-relaxed animate-fade-in">
+                    {testimonials[currentTestimonial].text}
                   </p>
-                  <p className="text-sm text-slate-400">
-                    {testimonials[currentTestimonial].location}
-                  </p>
+                  
+                  <div className="animate-slide-up">
+                    <p className="font-semibold text-white">
+                      {testimonials[currentTestimonial].name}
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      {testimonials[currentTestimonial].location}
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              <button
+                onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:translate-x-0 w-10 h-10 rounded-full bg-slate-700/50 hover:bg-slate-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                aria-label="Previous testimonial"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-0 w-10 h-10 rounded-full bg-slate-700/50 hover:bg-slate-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                aria-label="Next testimonial"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
 
             <div className="flex justify-center gap-2 mt-6">
@@ -409,28 +467,55 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-16 md:py-20">
+            <section className="py-16 md:py-20">
         <div className="container-custom">
-          <div className="card-elevated p-8 md:p-12 bg-gradient-to-br from-sky-500 to-blue-600 text-white text-center rounded-3xl">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Ready to Start Shopping?
-            </h2>
-            <p className="text-sky-100 text-lg mb-8 max-w-xl mx-auto">
-              Join thousands of satisfied customers and discover amazing deals today.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link 
-                href="/products" 
-                className="bg-white text-sky-600 hover:bg-sky-50 font-semibold py-3 px-8 rounded-xl transition-all hover:shadow-lg hover:-translate-y-0.5"
-              >
-                Browse Products
-              </Link>
-              <Link 
-                href="/login" 
-                className="bg-white/20 hover:bg-white/30 text-white font-semibold py-3 px-8 rounded-xl transition-all backdrop-blur-sm"
-              >
-                Create Account
-              </Link>
+          <div className="relative card-elevated p-8 md:p-12 bg-gradient-to-br from-sky-500 to-blue-600 text-white text-center rounded-3xl overflow-hidden">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full mix-blend-overlay filter blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-yellow-300 rounded-full mix-blend-overlay filter blur-3xl" />
+            </div>
+            <div className="absolute top-4 right-8 hidden md:block">
+              <svg className="w-12 h-12 text-white/20 animate-float" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <div className="absolute bottom-4 left-8 hidden md:block">
+              <svg className="w-10 h-10 text-white/20 animate-float" style={{ animationDelay: '1s' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </div>
+            
+            <div className="relative">
+              <h2 className="text-2xl md:text-3xl font-bold mb-4">
+                Ready to Start Shopping?
+              </h2>
+              <p className="text-sky-100 text-lg mb-8 max-w-xl mx-auto">
+                Join thousands of satisfied customers and discover amazing deals today.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link 
+                  href="/products" 
+                  className="group bg-white text-sky-600 hover:bg-sky-50 font-semibold py-3 px-8 rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-sky-500"
+                >
+                  <span className="flex items-center gap-2">
+                    Browse Products
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </span>
+                </Link>
+                <Link 
+                  href="/login" 
+                  className="group bg-white/20 hover:bg-white/30 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-sky-500"
+                >
+                  <span className="flex items-center gap-2">
+                    Create Account
+                    <svg className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                  </span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
