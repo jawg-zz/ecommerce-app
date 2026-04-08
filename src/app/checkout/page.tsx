@@ -473,7 +473,8 @@ function CheckoutPageContent() {
       if (!res.ok) {
         setCheckoutRequestId('')
         if (data.errorCode) {
-          setError(getMpesaErrorMessage(data.errorCode))
+          // Prefer actual M-Pesa ResultDesc (data.message), fall back to lookup
+          setError(data.message || getMpesaErrorMessage(data.errorCode))
         } else {
           setError(data.error || 'Checkout failed')
         }
