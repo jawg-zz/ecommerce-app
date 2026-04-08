@@ -17,7 +17,7 @@ const checkoutSchema = z.object({
     address: z.string(),
     city: z.string(),
     state: z.string(),
-    zipCode: z.string(),
+    zipCode: z.string().optional(),
     country: z.string(),
   }),
 })
